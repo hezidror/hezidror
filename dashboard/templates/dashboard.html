@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}דשבורד - חזי עיצוב שיער{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block body %}
+<header>
+  <h1>דשבורד הכנסות - חזי עיצוב שיער</h1>
+  <nav>
+    <a href="{{ url_for('prices_page') }}">מחירון</a>
+    <a href="{{ url_for('logout') }}">התנתקות</a>
+  </nav>
+</header>
+<main>
+  <div id="missing-warning" class="flash" style="display:none;"></div>
+
+  <div class="card" style="display:flex; gap:24px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      <div>
+        <div class="muted">הכנסות החודש</div>
+        <div id="stat-month" style="font-size:26px; font-weight:700;">-</div>
+      </div>
+      <div>
+        <div class="muted">הכנסות השנה</div>
+        <div id="stat-year" style="font-size:26px; font-weight:700;">-</div>
+      </div>
+      <div>
+        <div class="muted">סה"כ תורים שנספרו</div>
+        <div id="stat-events" style="font-size:26px; font-weight:700;">-</div>
+      </div>
+    </div>
+    <div style="text-align:left;">
+      <div class="muted" id="last-updated" style="font-size:12px;">-</div>
+      <button id="refresh-btn" style="margin-top:6px; padding:8px 16px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer;">
+        רענון עכשיו
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">הכנסות לפי חודש</h3>
+    <canvas id="revenueChart" height="90"></canvas>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">פופולריות טיפולים</h3>
+    <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
+      <div style="flex:1; min-width:260px; max-width:360px;">
+        <canvas id="treatmentChart"></canvas>
+      </div>
+      <div style="flex:2; min-width:280px;">
+        <table id="treatment-table">
+          <thead><tr><th>טיפול</th><th>מס' פעמים</th><th>הכנסה</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <h3 style="margin:0;">פירוט לקוחות</h3>
+      <select id="month-select" style="padding:8px; border-radius:8px; border:1px solid var(--line);"></select>
+    </div>
+    <table id="customer-table" style="margin-top:12px;">
+      <thead><tr><th>לקוח</th><th>מס' ביקורים</th><th>הכנסה</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</main>
+<footer>הדשבורד קורא מהיומן בלבד ולא כותב אליו. גישה אישית פרטית בלבד.</footer>
+
+<script>
+let revenueChart, treatmentChart;
+let currentData = null;
+
+function shekel(n) {
+  return "₪" + Number(n).toLocaleString("he-IL", {maximumFractionDigits: 0});
+}
+
+async function loadData(force) {
+  const res = await fetch("/api/data" + (force ? "?refresh=1" : ""));
+  if (res.status === 401) { window.location.href = "/login"; return; }
+  currentData = await res.json();
+  render(currentData);
+}
+
+function render(data) {
+  const now = new Date();
+  const thisMonthKey = now.toISOString().slice(0, 7);
+  const thisYearKey = String(now.getFullYear());
+
+  document.getElementById("stat-month").textContent = shekel(data.monthly_totals[thisMonthKey] || 0);
+  document.getElementById("stat-year").textContent = shekel(data.yearly_totals[thisYearKey] || 0);
+  document.getElementById("stat-events").textContent = data.total_events;
+  document.getElementById("last-updated").textContent = "עודכן: " + new Date(data.fetched_at + "Z").toLocaleString("he-IL");
+
+  const warn = document.getElementById("missing-warning");
+  if (data.missing_prices && data.missing_prices.length) {
+    warn.style.display = "block";
+    warn.textContent = "לתשומת לבך: לטיפולים הבאים אין מחיר מוגדר במחירון (נספרו בהכנסה כ-0): " + data.missing_prices.join(", ");
+  } else {
+    warn.style.display = "none";
+  }
+
+  renderRevenueChart(data.monthly_totals);
+  renderTreatments(data.treatment_stats);
+  renderMonthSelect(data.monthly, thisMonthKey);
+}
+
+function renderRevenueChart(monthlyTotals) {
+  const months = Object.keys(monthlyTotals).sort().slice(-12);
+  const values = months.map(m => monthlyTotals[m]);
+  const ctx = document.getElementById("revenueChart");
+  if (revenueChart) revenueChart.destroy();
+  revenueChart = new Chart(ctx, {
+    type: "bar",
+    data: { labels: months, datasets: [{ label: "הכנסה חודשית (₪)", data: values, backgroundColor: "#b8834a" }] },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+}
+
+function renderTreatments(treatmentStats) {
+  const entries = Object.entries(treatmentStats).sort((a, b) => b[1].revenue - a[1].revenue);
+  const tbody = document.querySelector("#treatment-table tbody");
+  tbody.innerHTML = "";
+  entries.forEach(([name, s]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${name}</td><td>${s.count}</td><td>${shekel(s.revenue)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const ctx = document.getElementById("treatmentChart");
+  if (treatmentChart) treatmentChart.destroy();
+  treatmentChart = new Chart(ctx, {
+    type: "pie",
+    data: {
+      labels: entries.map(e => e[0]),
+      datasets: [{ data: entries.map(e => e[1].count), backgroundColor: ["#b8834a","#8f6636","#d9b48f","#6b4f34","#e0c9a6","#a5714a","#c98f5e","#7a5a3a"] }]
+    },
+    options: { responsive: true }
+  });
+}
+
+let selectedMonth = null;
+
+function renderMonthSelect(monthly, defaultMonth) {
+  const select = document.getElementById("month-select");
+  const months = Object.keys(monthly).sort().reverse();
+  const keep = selectedMonth && months.includes(selectedMonth) ? selectedMonth : (months.includes(defaultMonth) ? defaultMonth : months[0]);
+  select.innerHTML = months.map(m => `<option value="${m}" ${m === keep ? "selected" : ""}>${m}</option>`).join("");
+  selectedMonth = keep;
+  renderCustomerTable(monthly, keep);
+}
+
+function renderCustomerTable(monthly, month) {
+  const tbody = document.querySelector("#customer-table tbody");
+  tbody.innerHTML = "";
+  if (!month || !monthly[month]) return;
+  const entries = Object.entries(monthly[month]).sort((a, b) => b[1].revenue - a[1].revenue);
+  entries.forEach(([name, s]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${name}</td><td>${s.visits}</td><td>${shekel(s.revenue)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("month-select").addEventListener("change", (e) => {
+  selectedMonth = e.target.value;
+  if (currentData) renderCustomerTable(currentData.monthly, selectedMonth);
+});
+
+document.getElementById("refresh-btn").addEventListener("click", () => loadData(true));
+
+loadData(false);
+setInterval(() => loadData(false), 5 * 60 * 1000);
+</script>
+{% endblock %}

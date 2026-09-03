@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}מחירון - חזי עיצוב שיער{% endblock %}
+{% block body %}
+<header>
+  <h1>מחירון טיפולים</h1>
+  <nav>
+    <a href="{{ url_for('dashboard') }}">לדשבורד</a>
+    <a href="{{ url_for('logout') }}">התנתקות</a>
+  </nav>
+</header>
+<main>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+  <div class="card">
+    <p class="muted">
+      שם הטיפול כאן חייב להיות זהה בדיוק לטקסט שנרשם בשדה "מיקום" (Location) באירוע ביומן,
+      כדי שהדשבורד ידע לשייך לו מחיר.
+    </p>
+    <form method="post">
+      <table>
+        <thead>
+          <tr><th>סוג טיפול</th><th>מחיר (₪)</th></tr>
+        </thead>
+        <tbody>
+          {% for name, price in prices.items() %}
+          <tr>
+            <td><input type="text" name="name" value="{{ name }}" style="width:100%; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
+            <td><input type="number" step="0.5" name="price" value="{{ price }}" style="width:100px; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <td><input type="text" name="new_name" placeholder="טיפול חדש" style="width:100%; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
+            <td><input type="number" step="0.5" name="new_price" placeholder="מחיר" style="width:100px; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="submit" style="margin-top:16px; padding:10px 20px; border-radius:10px; border:none; background:var(--accent); color:#fff; cursor:pointer;">
+        שמירה
+      </button>
+    </form>
+  </div>
+</main>
+<footer>מחירון זה משפיע רק על חישובי הדשבורד - אינו נוגע ביומן Google Calendar.</footer>
+{% endblock %}
