@@ -55,22 +55,55 @@
 3. הרשאה: **"See all event details"** (לא "Make changes to events"!).
    ככה גם ברמת גוגל אין שום אפשרות כתיבה, לא רק בקוד.
 
-### 3. הגדרת משתני הסביבה
+כעת בחרו אחת משתי הדרכים להרצה בפועל: פריסה ל-Render.com (מומלץ, בלי
+טרמינל) או הרצה מקומית על המחשב.
+
+## פריסה ל-Render.com (בלי טרמינל, הכל דרך האתר)
+
+זו הדרך המומלצת אם לא נוח לך עם שורת פקודה במחשב. כל השלבים דרך דפדפן:
+
+1. כנסו ל-https://render.com > "Get Started" > התחברות עם חשבון GitHub
+   (אותו חשבון שבו נמצא הריפו `hezidror/hezidror`).
+2. "New +" > **"Web Service"**.
+3. בחרו את הריפו `hezidror/hezidror` מהרשימה (אם לא מופיע - "Configure
+   account" ותנו ל-Render גישה לריפו).
+4. במסך ההגדרות:
+   - **Name**: `hezi-dashboard` (או כל שם)
+   - **Root Directory**: `dashboard`
+   - **Runtime**: Python 3
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn app:app`
+   - **Instance Type**: Free
+5. גללו למטה ל-**"Environment Variables"** > "Add Environment Variable",
+   והוסיפו אחד-אחד:
+   - `DASHBOARD_PASSWORD` = סיסמה שרק אתה תדע
+   - `SECRET_KEY` = מחרוזת אקראית ארוכה (אפשר להמציא לבד)
+   - `GOOGLE_CALENDAR_ID` = `hairstylinghd@gmail.com`
+   - `HISTORY_START_DATE` = `2024-01-01`
+   - `GOOGLE_SERVICE_ACCOUNT_FILE` = `/etc/secrets/service_account.json`
+6. גללו ל-**"Secret Files"** > "Add Secret File":
+   - **Filename**: `service_account.json`
+   - **Contents**: פתחו את קובץ ה-JSON שהורדתם משלב 1 בעורך טקסט, והדביקו
+     את כל התוכן שלו כאן.
+7. לחצו **"Create Web Service"** למטה. Render יתחיל לבנות ולהריץ את
+   הדשבורד - לוקח כ-2-3 דקות. בסיום תקבלו כתובת קבועה בסגנון
+   `https://hezi-dashboard.onrender.com` - זו הכתובת של הדשבורד הפרטי
+   שלך, נגישה מכל מקום (מחשב או נייד) עם HTTPS, עדיין מוגנת בסיסמה בלבד.
+
+הערה: בתוכנית החינמית של Render השירות "נרדם" אחרי 15 דקות ללא שימוש,
+וטעינה ראשונה אחרי תקופת שינה לוקחת כ-30 שניות - זה תקין, לא תקלה.
+
+## הרצה מקומית (חלופה, דורשת טרמינל)
 
 ```bash
 cd dashboard
 cp .env.example .env
 ```
 
-ואז עורכים את `.env`:
-- `DASHBOARD_PASSWORD` - סיסמה שרק אתה תדע.
-- `SECRET_KEY` - מחרוזת אקראית (אפשר להריץ
-  `python3 -c "import secrets; print(secrets.token_hex(32))"`).
-- `GOOGLE_CALENDAR_ID` - כתובת המייל של היומן (hairstylinghd@gmail.com).
-- `GOOGLE_SERVICE_ACCOUNT_FILE` - נתיב לקובץ ה-JSON מהשלב 1.
-- `HISTORY_START_DATE` - מאיזה תאריך להתחיל לספור נתונים היסטוריים.
-
-### 4. התקנה והרצה
+ואז עורכים את `.env`: `DASHBOARD_PASSWORD`, `SECRET_KEY` (מחרוזת אקראית -
+אפשר להריץ `python3 -c "import secrets; print(secrets.token_hex(32))"`),
+`GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_FILE` (נתיב לקובץ ה-JSON
+מהשלב הקודם), `HISTORY_START_DATE`.
 
 ```bash
 python3 -m venv .venv
@@ -80,15 +113,6 @@ python app.py
 ```
 
 הדשבורד ירוץ בכתובת http://127.0.0.1:5000 - נגיש רק מהמחשב שלך.
-
-## אם רוצים גישה גם מהטלפון, לא רק מהמחשב
-
-הרצה מקומית (`127.0.0.1`) היא הכי פרטית - שום דבר לא נחשף לאינטרנט.
-אם תרצה לגשת גם מהנייד בדרך מאובטחת, האפשרות הפשוטה ביותר היא לפרוס
-לשירות כמו Render.com (יש תוכנית חינמית, כולל HTTPS אוטומטי) - צריך רק
-להעלות את משתני הסביבה מ-`.env` להגדרות השירות שם (כולל תוכן קובץ
-ה-JSON של חשבון השירות). זה עדיין שומר על שתי ההגנות: קריאה בלבד מהיומן
-+ סיסמה אישית. אפשר לבקש ממני עזרה עם השלב הזה כשתגיע אליו.
 
 ## הערה על "הכנסות"
 
