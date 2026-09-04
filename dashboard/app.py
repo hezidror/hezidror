@@ -27,8 +27,25 @@ HISTORY_START_DATE = os.environ.get("HISTORY_START_DATE", "2024-01-01")
 FUTURE_HORIZON_DAYS = int(os.environ.get("FUTURE_HORIZON_DAYS", "365"))
 PRICES_FILE = os.path.join(os.path.dirname(__file__), "prices.json")
 PRICES_SHEET_ID = os.environ.get("GOOGLE_PRICES_SHEET_ID", "").strip()
-PRICES_SHEET_DATA_RANGE = "Prices!A2:B1000"
+PRICES_SHEET_DATA_RANGE = "Prices!A2:C1000"
 PRICES_SHEET_WRITE_START = "Prices!A2"
+
+# שמות הצבעים כפי שהם מוצגים בבורר הצבעים של Google Calendar (עברית ואנגלית),
+# ממופים ל-colorId שה-API מחזיר על כל אירוע. עמודה שלישית (C) בגיליון המחירון
+# מגדירה אילו טיפולים מזוהים לפי צבע האירוע במקום לפי שדה המיקום.
+COLOR_NAME_TO_ID = {
+    "lavender": "1", "לבנדר": "1",
+    "sage": "2", "מרווה": "2",
+    "grape": "3", "ענבים": "3",
+    "flamingo": "4", "פלמינגו": "4",
+    "banana": "5", "בננה": "5",
+    "tangerine": "6", "קלמנטינה": "6", "כתום": "6",
+    "peacock": "7", "טווס": "7",
+    "graphite": "8", "גרפיט": "8", "אפור": "8",
+    "blueberry": "9", "אוכמניות": "9", "כחול": "9",
+    "basil": "10", "בזיליקום": "10", "ירוק כהה": "10",
+    "tomato": "11", "עגבנייה": "11", "אדום": "11",
+}
 
 # היומן נשאר readonly בכוונה: גם אם מישהו ישנה קוד בטעות ויקרא ל-insert/update על
 # היומן, הבקשה תידחה ע"י גוגל ברמת ה-API. spreadsheets משמש רק לגיליון המחירון
@@ -67,17 +84,23 @@ def get_sheets_service():
     return build("sheets", "v4", credentials=get_credentials(), cache_discovery=False)
 
 
+def _read_price_rows():
+    if not PRICES_SHEET_ID:
+        return []
+    service = get_sheets_service()
+    result = service.spreadsheets().values().get(
+        spreadsheetId=PRICES_SHEET_ID, range=PRICES_SHEET_DATA_RANGE
+    ).execute()
+    return result.get("values", [])
+
+
 def load_prices():
     if PRICES_SHEET_ID:
-        service = get_sheets_service()
-        result = service.spreadsheets().values().get(
-            spreadsheetId=PRICES_SHEET_ID, range=PRICES_SHEET_DATA_RANGE
-        ).execute()
         prices = {}
-        for row in result.get("values", []):
+        for row in _read_price_rows():
             if len(row) < 2:
                 continue
-            name = row[0].strip()
+            name = normalize_treatment_name(row[0])
             if not name:
                 continue
             try:
@@ -90,13 +113,33 @@ def load_prices():
         return json.load(f)
 
 
+def load_price_colors():
+    """מיפוי טיפול -> colorId, לפי עמודה C בגיליון המחירון (שם צבע בעברית/אנגלית)."""
+    colors = {}
+    for row in _read_price_rows():
+        if len(row) < 3:
+            continue
+        name = normalize_treatment_name(row[0])
+        color_id = COLOR_NAME_TO_ID.get(row[2].strip().lower())
+        if name and color_id:
+            colors[name] = color_id
+    return colors
+
+
 def save_prices(prices):
     if PRICES_SHEET_ID:
+        existing_colors = {}
+        for row in _read_price_rows():
+            if len(row) >= 3:
+                name = normalize_treatment_name(row[0])
+                if name:
+                    existing_colors[name] = row[2]
+
         service = get_sheets_service()
         service.spreadsheets().values().clear(
             spreadsheetId=PRICES_SHEET_ID, range=PRICES_SHEET_DATA_RANGE
         ).execute()
-        rows = [[name, price] for name, price in sorted(prices.items())]
+        rows = [[name, price, existing_colors.get(name, "")] for name, price in sorted(prices.items())]
         if rows:
             service.spreadsheets().values().update(
                 spreadsheetId=PRICES_SHEET_ID,
@@ -133,8 +176,9 @@ def fetch_events():
     return events
 
 
-def compute_stats(events, prices):
+def compute_stats(events, prices, price_colors=None):
     normalized_prices = {normalize_treatment_name(name): price for name, price in prices.items()}
+    color_id_to_treatment = {color_id: name for name, color_id in (price_colors or {}).items()}
     now = datetime.datetime.now(datetime.timezone.utc)
 
     monthly = defaultdict(lambda: defaultdict(lambda: {"visits": 0, "revenue": 0}))
@@ -163,7 +207,9 @@ def compute_stats(events, prices):
             dt = dt.replace(tzinfo=datetime.timezone.utc)
 
         customer = (ev.get("description") or "").strip()
-        treatment = normalize_treatment_name(ev.get("location"))
+        treatment = color_id_to_treatment.get(ev.get("colorId"))
+        if not treatment:
+            treatment = normalize_treatment_name(ev.get("location"))
         if not customer or not treatment:
             skipped += 1
             continue
@@ -244,7 +290,8 @@ def api_data():
     if force or stale:
         events = fetch_events()
         prices = load_prices()
-        _cache["data"] = compute_stats(events, prices)
+        price_colors = load_price_colors()
+        _cache["data"] = compute_stats(events, prices, price_colors)
         _cache["fetched_at"] = now
 
     payload = dict(_cache["data"])
