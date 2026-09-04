@@ -251,10 +251,14 @@ def api_data():
 @login_required
 def prices_page():
     if request.method == "POST":
+        orig_names = request.form.getlist("orig_name")
         names = request.form.getlist("name")
         values = request.form.getlist("price")
+        deleted = set(request.form.getlist("delete_orig"))
         new_prices = {}
-        for name, value in zip(names, values):
+        for orig_name, name, value in zip(orig_names, names, values):
+            if orig_name in deleted:
+                continue
             name = name.strip()
             if not name:
                 continue

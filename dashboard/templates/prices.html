@@ -22,21 +22,24 @@
     <form method="post">
       <table>
         <thead>
-          <tr><th>סוג טיפול</th><th>מחיר (₪)</th></tr>
+          <tr><th>סוג טיפול</th><th>מחיר (₪)</th><th>מחיקה</th></tr>
         </thead>
         <tbody>
           {% for name, price in prices.items() %}
           <tr>
-            <td><input type="text" name="name" value="{{ name }}" style="width:100%; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
+            <td><input type="hidden" name="orig_name" value="{{ name }}"><input type="text" name="name" value="{{ name }}" style="width:100%; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
             <td><input type="number" step="0.5" name="price" value="{{ price }}" style="width:100px; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
+            <td style="text-align:center;"><input type="checkbox" name="delete_orig" value="{{ name }}" style="width:18px; height:18px; cursor:pointer;"></td>
           </tr>
           {% endfor %}
           <tr>
             <td><input type="text" name="new_name" placeholder="טיפול חדש" style="width:100%; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
             <td><input type="number" step="0.5" name="new_price" placeholder="מחיר" style="width:100px; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
+            <td></td>
           </tr>
         </tbody>
       </table>
+      <p class="muted" style="margin-top:8px;">כדי למחוק טיפול, סמן את תיבת הסימון בעמודת "מחיקה" שלו ולחץ שמירה.</p>
       <button type="submit" style="margin-top:16px; padding:10px 20px; border-radius:10px; border:none; background:var(--accent); color:#fff; cursor:pointer;">
         שמירה
       </button>
