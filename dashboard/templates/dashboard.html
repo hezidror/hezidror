@@ -38,7 +38,26 @@
   </div>
 
   <div class="card">
-    <h3 style="margin-top:0;">הכנסות לפי חודש</h3>
+    <h3 style="margin-top:0;">הכנסה צפויה מתורים עתידיים</h3>
+    <p class="muted" style="margin-top:-6px;">תורים שכבר נקבעו ביומן אך טרם התקיימו - תחזית, לא הכנסה בפועל.</p>
+    <div style="display:flex; gap:24px; flex-wrap:wrap; margin-bottom:14px;">
+      <div>
+        <div class="muted">סה"כ צפוי (כל התורים העתידיים)</div>
+        <div id="stat-future-total" style="font-size:26px; font-weight:700; color:var(--accent-dark);">-</div>
+      </div>
+      <div>
+        <div class="muted">מס' תורים עתידיים</div>
+        <div id="stat-future-count" style="font-size:26px; font-weight:700;">-</div>
+      </div>
+    </div>
+    <table id="future-table">
+      <thead><tr><th>חודש</th><th>הכנסה צפויה</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">הכנסות בפועל לפי חודש</h3>
     <canvas id="revenueChart" height="90"></canvas>
   </div>
 
@@ -103,9 +122,28 @@ function render(data) {
     warn.style.display = "none";
   }
 
+  document.getElementById("stat-future-total").textContent = shekel(data.future_total || 0);
+  document.getElementById("stat-future-count").textContent = data.future_count || 0;
+  renderFutureTable(data.future_monthly_totals);
+
   renderRevenueChart(data.monthly_totals);
   renderTreatments(data.treatment_stats);
   renderMonthSelect(data.monthly, thisMonthKey);
+}
+
+function renderFutureTable(futureMonthlyTotals) {
+  const tbody = document.querySelector("#future-table tbody");
+  tbody.innerHTML = "";
+  const months = Object.keys(futureMonthlyTotals || {}).sort();
+  if (!months.length) {
+    tbody.innerHTML = '<tr><td colspan="2" class="muted">אין תורים עתידיים רשומים ביומן</td></tr>';
+    return;
+  }
+  months.forEach(m => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${m}</td><td>${shekel(futureMonthlyTotals[m])}</td>`;
+    tbody.appendChild(tr);
+  });
 }
 
 function renderRevenueChart(monthlyTotals) {

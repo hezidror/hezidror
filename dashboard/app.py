@@ -23,6 +23,7 @@ DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
 CALENDAR_ID = os.environ.get("GOOGLE_CALENDAR_ID", "primary")
 SERVICE_ACCOUNT_FILE = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "service_account.json")
 HISTORY_START_DATE = os.environ.get("HISTORY_START_DATE", "2024-01-01")
+FUTURE_HORIZON_DAYS = int(os.environ.get("FUTURE_HORIZON_DAYS", "365"))
 PRICES_FILE = os.path.join(os.path.dirname(__file__), "prices.json")
 
 # scope הוא read-only בכוונה: גם אם מישהו ישנה קוד בטעות ויקרא ל-insert/update,
@@ -60,7 +61,7 @@ def get_calendar_service():
 def fetch_events():
     service = get_calendar_service()
     time_min = f"{HISTORY_START_DATE}T00:00:00Z"
-    time_max = datetime.datetime.utcnow().isoformat() + "Z"
+    time_max = (datetime.datetime.utcnow() + datetime.timedelta(days=FUTURE_HORIZON_DAYS)).isoformat() + "Z"
     events = []
     page_token = None
     while True:
@@ -82,11 +83,15 @@ def fetch_events():
 
 def compute_stats(events, prices):
     normalized_prices = {name.strip(): price for name, price in prices.items()}
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     monthly = defaultdict(lambda: defaultdict(lambda: {"visits": 0, "revenue": 0}))
     treatment_stats = defaultdict(lambda: {"count": 0, "revenue": 0})
     monthly_totals = defaultdict(float)
     yearly_totals = defaultdict(float)
+    future_monthly_totals = defaultdict(float)
+    future_total = 0.0
+    future_count = 0
     missing_prices = set()
     skipped = 0
 
@@ -102,6 +107,8 @@ def compute_stats(events, prices):
             dt = datetime.datetime.fromisoformat(start_str.replace("Z", "+00:00"))
         except ValueError:
             continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
 
         customer = (ev.get("description") or "").strip()
         treatment = (ev.get("location") or "").strip()
@@ -113,6 +120,13 @@ def compute_stats(events, prices):
         if price is None:
             missing_prices.add(treatment)
             price = 0
+
+        if dt > now:
+            month_key = dt.strftime("%Y-%m")
+            future_monthly_totals[month_key] += price
+            future_total += price
+            future_count += 1
+            continue
 
         month_key = dt.strftime("%Y-%m")
         year_key = dt.strftime("%Y")
@@ -131,6 +145,9 @@ def compute_stats(events, prices):
         "treatment_stats": treatment_stats,
         "monthly_totals": monthly_totals,
         "yearly_totals": yearly_totals,
+        "future_monthly_totals": future_monthly_totals,
+        "future_total": future_total,
+        "future_count": future_count,
         "missing_prices": sorted(missing_prices),
         "skipped": skipped,
         "total_events": len(events),
