@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import datetime
 from collections import defaultdict
@@ -39,6 +40,10 @@ SCOPES = [
 
 _cache = {"data": None, "fetched_at": None}
 CACHE_TTL_SECONDS = 300
+
+
+def normalize_treatment_name(name):
+    return re.sub(r"\s+", " ", (name or "").strip())
 
 
 def login_required(view):
@@ -129,7 +134,7 @@ def fetch_events():
 
 
 def compute_stats(events, prices):
-    normalized_prices = {name.strip(): price for name, price in prices.items()}
+    normalized_prices = {normalize_treatment_name(name): price for name, price in prices.items()}
     now = datetime.datetime.now(datetime.timezone.utc)
 
     monthly = defaultdict(lambda: defaultdict(lambda: {"visits": 0, "revenue": 0}))
@@ -158,7 +163,7 @@ def compute_stats(events, prices):
             dt = dt.replace(tzinfo=datetime.timezone.utc)
 
         customer = (ev.get("description") or "").strip()
-        treatment = (ev.get("location") or "").strip()
+        treatment = normalize_treatment_name(ev.get("location"))
         if not customer or not treatment:
             skipped += 1
             continue
@@ -259,7 +264,7 @@ def prices_page():
         for orig_name, name, value in zip(orig_names, names, values):
             if orig_name in deleted:
                 continue
-            name = name.strip()
+            name = normalize_treatment_name(name)
             if not name:
                 continue
             try:
@@ -267,7 +272,7 @@ def prices_page():
             except ValueError:
                 continue
 
-        new_name = request.form.get("new_name", "").strip()
+        new_name = normalize_treatment_name(request.form.get("new_name", ""))
         new_price = request.form.get("new_price", "").strip()
         if new_name and new_price:
             try:

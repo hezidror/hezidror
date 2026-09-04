@@ -15,6 +15,22 @@
     {% endif %}
   {% endwith %}
   <div class="card">
+    <h3 style="margin-top:0;">רשימה להעתקה מהירה</h3>
+    <p class="muted" style="margin-top:-6px;">
+      לחצו על טיפול כדי להעתיק את השם המדויק שלו, ואז הדביקו אותו בשדה "מיקום" ביומן
+      (Ctrl+V) - כך אין סיכון לטעות הקלדה.
+    </p>
+    <div id="copy-list" style="display:flex; flex-wrap:wrap; gap:8px;">
+      {% for name, price in prices.items() %}
+      <button type="button" class="copy-chip" data-name="{{ name }}"
+              style="padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:#faf7f2; cursor:pointer; font-size:14px;">
+        {{ name }} <span class="muted">({{ price|int }}₪)</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
     <p class="muted">
       שם הטיפול כאן חייב להיות זהה בדיוק לטקסט שנרשם בשדה "מיקום" (Location) באירוע ביומן,
       כדי שהדשבורד ידע לשייך לו מחיר.
@@ -47,4 +63,26 @@
   </div>
 </main>
 <footer>מחירון זה משפיע רק על חישובי הדשבורד - אינו נוגע ביומן Google Calendar.</footer>
+
+<script>
+document.querySelectorAll(".copy-chip").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const name = btn.dataset.name;
+    try {
+      await navigator.clipboard.writeText(name);
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = name;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    const original = btn.innerHTML;
+    btn.textContent = "הועתק! ✓";
+    btn.style.background = "#e8f5e9";
+    setTimeout(() => { btn.innerHTML = original; btn.style.background = "#faf7f2"; }, 1200);
+  });
+});
+</script>
 {% endblock %}
