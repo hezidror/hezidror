@@ -25,10 +25,17 @@ SERVICE_ACCOUNT_FILE = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "service_ac
 HISTORY_START_DATE = os.environ.get("HISTORY_START_DATE", "2024-01-01")
 FUTURE_HORIZON_DAYS = int(os.environ.get("FUTURE_HORIZON_DAYS", "365"))
 PRICES_FILE = os.path.join(os.path.dirname(__file__), "prices.json")
+PRICES_SHEET_ID = os.environ.get("GOOGLE_PRICES_SHEET_ID", "").strip()
+PRICES_SHEET_DATA_RANGE = "Prices!A2:B1000"
+PRICES_SHEET_WRITE_START = "Prices!A2"
 
-# scope הוא read-only בכוונה: גם אם מישהו ישנה קוד בטעות ויקרא ל-insert/update,
-# בקשת הכתיבה תידחה ע"י גוגל ברמת ה-API - היומן לא יכול להשתנות מהאפליקציה הזו.
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+# היומן נשאר readonly בכוונה: גם אם מישהו ישנה קוד בטעות ויקרא ל-insert/update על
+# היומן, הבקשה תידחה ע"י גוגל ברמת ה-API. spreadsheets משמש רק לגיליון המחירון
+# הנפרד (לא היומן) כדי שעריכת מחירים תישרד הפעלות מחדש של השרת.
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+]
 
 _cache = {"data": None, "fetched_at": None}
 CACHE_TTL_SECONDS = 300
@@ -43,19 +50,59 @@ def login_required(view):
     return wrapped
 
 
+def get_credentials():
+    return service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+
+def get_calendar_service():
+    return build("calendar", "v3", credentials=get_credentials(), cache_discovery=False)
+
+
+def get_sheets_service():
+    return build("sheets", "v4", credentials=get_credentials(), cache_discovery=False)
+
+
 def load_prices():
+    if PRICES_SHEET_ID:
+        service = get_sheets_service()
+        result = service.spreadsheets().values().get(
+            spreadsheetId=PRICES_SHEET_ID, range=PRICES_SHEET_DATA_RANGE
+        ).execute()
+        prices = {}
+        for row in result.get("values", []):
+            if len(row) < 2:
+                continue
+            name = row[0].strip()
+            if not name:
+                continue
+            try:
+                prices[name] = float(row[1])
+            except ValueError:
+                continue
+        return prices
+
     with open(PRICES_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_prices(prices):
+    if PRICES_SHEET_ID:
+        service = get_sheets_service()
+        service.spreadsheets().values().clear(
+            spreadsheetId=PRICES_SHEET_ID, range=PRICES_SHEET_DATA_RANGE
+        ).execute()
+        rows = [[name, price] for name, price in sorted(prices.items())]
+        if rows:
+            service.spreadsheets().values().update(
+                spreadsheetId=PRICES_SHEET_ID,
+                range=PRICES_SHEET_WRITE_START,
+                valueInputOption="RAW",
+                body={"values": rows},
+            ).execute()
+        return
+
     with open(PRICES_FILE, "w", encoding="utf-8") as f:
         json.dump(prices, f, ensure_ascii=False, indent=2, sort_keys=True)
-
-
-def get_calendar_service():
-    creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-    return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
 
 def fetch_events():
