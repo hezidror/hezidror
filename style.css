@@ -261,6 +261,140 @@ a { color: inherit; text-decoration: none; }
 .contact-address { cursor: default; }
 .contact-address:hover { transform: none; }
 
+/* Prices */
+.price-list {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--color-surface);
+  border: 1px solid rgba(212,175,106,0.25);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  box-shadow: var(--shadow);
+}
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+}
+.price-row + .price-row { border-top: 1px solid rgba(244,236,223,0.06); }
+.price-name { font-weight: 600; }
+.price-dots {
+  flex: 1;
+  border-bottom: 1px dotted rgba(212,175,106,0.4);
+  transform: translateY(-4px);
+}
+.price-value {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+.price-note {
+  margin: 20px auto 0;
+  max-width: 720px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+/* Hours */
+.hours-wrap {
+  max-width: 520px;
+  margin: 0 auto;
+}
+.open-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+.open-status::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.open-status.is-open { color: #7fcf8e; }
+.open-status.is-closed { color: #e08a7a; }
+.hours-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 24px;
+  background: var(--color-surface);
+  border: 1px solid rgba(244,236,223,0.08);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.hours-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  color: var(--color-text-muted);
+}
+.hours-list li + li { border-top: 1px solid rgba(244,236,223,0.06); }
+.hours-list li span:last-child {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.hours-list li.today {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Map */
+.map-wrap {
+  margin-top: 28px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(244,236,223,0.08);
+}
+.map-wrap iframe {
+  display: block;
+  width: 100%;
+  height: 340px;
+  border: 0;
+  filter: grayscale(0.4) contrast(1.05);
+}
+
+/* Floating WhatsApp */
+.wa-float {
+  position: fixed;
+  bottom: 22px;
+  left: 22px;
+  z-index: 60;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #25d366;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  transition: transform 0.2s ease;
+}
+.wa-float:hover { transform: scale(1.08); }
+
+/* Scroll reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
 /* Footer */
 .site-footer {
   padding: 28px 0;
@@ -283,6 +417,8 @@ a { color: inherit; text-decoration: none; }
   .nav-links { display: none; }
   .header-cta { display: none; }
   .menu-toggle { display: flex; }
+  .price-list { padding: 16px 20px; }
+  .map-wrap iframe { height: 260px; }
   .nav-links.open {
     display: flex;
     position: absolute;

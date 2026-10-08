@@ -39,8 +39,10 @@
     <a href="#top" class="logo"><img src="assets/logo.jpg" alt="חזי - עיצוב שיער"></a>
     <nav class="nav-links">
       <a href="#services">שירותים</a>
+      <a href="#prices">מחירון</a>
       <a href="#gallery">גלריה</a>
       <a href="#about">אודות</a>
+      <a href="#hours">שעות פתיחה</a>
       <a href="#contact">יצירת קשר</a>
     </nav>
     <a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="btn btn-primary header-cta" target="_blank" rel="noopener">קביעת תור</a>
@@ -73,7 +75,7 @@
   <div class="container">
     <p class="section-eyebrow">מה אנחנו מציעים</p>
     <h2 class="section-title">השירותים שלנו</h2>
-    <div class="cards-grid">
+    <div class="cards-grid reveal">
       <div class="card">
         <div class="card-icon">✂️</div>
         <h3>תספורות</h3>
@@ -98,12 +100,32 @@
   </div>
 </section>
 
+<!-- ===== Prices ===== -->
+<section id="prices" class="section section-alt">
+  <div class="container">
+    <p class="section-eyebrow">שקיפות מלאה</p>
+    <h2 class="section-title">מחירון</h2>
+    <div class="price-list reveal">
+      <div class="price-row"><span class="price-name">תספורת גבר</span><span class="price-dots"></span><span class="price-value">₪70</span></div>
+      <div class="price-row"><span class="price-name">תספורת + זקן</span><span class="price-dots"></span><span class="price-value">₪90</span></div>
+      <div class="price-row"><span class="price-name">עיצוב זקן</span><span class="price-dots"></span><span class="price-value">₪40</span></div>
+      <div class="price-row"><span class="price-name">תספורת ילד (עד גיל 12)</span><span class="price-dots"></span><span class="price-value">₪55</span></div>
+      <div class="price-row"><span class="price-name">תספורת אישה</span><span class="price-dots"></span><span class="price-value">מ-₪120</span></div>
+      <div class="price-row"><span class="price-name">צבע שורש</span><span class="price-dots"></span><span class="price-value">מ-₪180</span></div>
+      <div class="price-row"><span class="price-name">גוונים / בלייאג'</span><span class="price-dots"></span><span class="price-value">מ-₪350</span></div>
+      <div class="price-row"><span class="price-name">החלקה</span><span class="price-dots"></span><span class="price-value">מ-₪600</span></div>
+      <div class="price-row"><span class="price-name">עיצוב שיער לאירוע</span><span class="price-dots"></span><span class="price-value">מ-₪250</span></div>
+    </div>
+    <p class="price-note">המחירים משתנים לפי אורך ועובי השיער. לקבלת הצעה מדויקת - שלחו הודעה בוואטסאפ.</p>
+  </div>
+</section>
+
 <!-- ===== Gallery ===== -->
-<section id="gallery" class="section section-alt">
+<section id="gallery" class="section">
   <div class="container">
     <p class="section-eyebrow">עבודות אחרונות</p>
     <h2 class="section-title">גלריה</h2>
-    <div class="gallery-grid">
+    <div class="gallery-grid reveal">
       <div class="gallery-item"></div>
       <div class="gallery-item"></div>
       <div class="gallery-item"></div>
@@ -116,10 +138,10 @@
 </section>
 
 <!-- ===== About ===== -->
-<section id="about" class="section about">
+<section id="about" class="section section-alt about">
   <div class="container about-inner">
     <div class="about-image" aria-hidden="true"></div>
-    <div class="about-text">
+    <div class="about-text reveal">
       <p class="section-eyebrow">מי אני</p>
       <h2 class="section-title">אודות חזי</h2>
       <p>אני מעצב שיער עם ניסיון של שנים, המשלב מקצועיות, תשומת לב לפרטים ואווירה אישית וחמה. המטרה שלי היא שתצאו מרוצים ובטוחים במראה החדש שלכם.</p>
@@ -132,12 +154,32 @@
   </div>
 </section>
 
+<!-- ===== Hours ===== -->
+<section id="hours" class="section">
+  <div class="container">
+    <p class="section-eyebrow">מתי אפשר להגיע</p>
+    <h2 class="section-title">שעות פתיחה</h2>
+    <div class="hours-wrap reveal">
+      <p class="open-status" id="openStatus" hidden></p>
+      <ul class="hours-list" id="hoursList">
+        <li data-day="0"><span>ראשון</span><span>09:00 - 20:00</span></li>
+        <li data-day="1"><span>שני</span><span>09:00 - 20:00</span></li>
+        <li data-day="2"><span>שלישי</span><span>09:00 - 20:00</span></li>
+        <li data-day="3"><span>רביעי</span><span>09:00 - 20:00</span></li>
+        <li data-day="4"><span>חמישי</span><span>09:00 - 21:00</span></li>
+        <li data-day="5"><span>שישי</span><span>08:00 - 14:00</span></li>
+        <li data-day="6"><span>שבת</span><span>סגור</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <!-- ===== Contact ===== -->
 <section id="contact" class="section section-alt contact">
   <div class="container">
     <p class="section-eyebrow">בואו נדבר</p>
     <h2 class="section-title">יצירת קשר</h2>
-    <div class="contact-grid">
+    <div class="contact-grid reveal">
       <a class="contact-card" href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" target="_blank" rel="noopener">
         <span class="contact-icon">💬</span>
         <span>קביעת תור בוואטסאפ</span>
@@ -158,6 +200,13 @@
         <span class="contact-icon">📍</span>
         <span>רחוב הדוגמה 1, העיר שלך</span>
       </div>
+      <a class="contact-card" href="https://waze.com/ul?q=%D7%A8%D7%97%D7%95%D7%91%20%D7%94%D7%93%D7%95%D7%92%D7%9E%D7%94%201&navigate=yes" target="_blank" rel="noopener">
+        <span class="contact-icon">🚗</span>
+        <span>ניווט בוויז</span>
+      </a>
+    </div>
+    <div class="map-wrap reveal">
+      <iframe title="מפה - חזי עיצוב שיער" src="https://www.google.com/maps?q=%D7%A8%D7%97%D7%95%D7%91%20%D7%94%D7%93%D7%95%D7%92%D7%9E%D7%94%201&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
   </div>
 </section>
@@ -168,6 +217,11 @@
     <span>&copy; <span id="year"></span> חזי - עיצוב שיער. כל הזכויות שמורות.</span>
   </div>
 </footer>
+
+<!-- Floating WhatsApp button -->
+<a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="wa-float" target="_blank" rel="noopener" aria-label="קביעת תור בוואטסאפ">
+  <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M16 3C8.8 3 3 8.7 3 15.8c0 2.5.7 4.9 2 7L3 29l6.4-2c2 1.1 4.3 1.7 6.6 1.7 7.2 0 13-5.7 13-12.8S23.2 3 16 3zm0 23.4c-2.1 0-4.1-.6-5.9-1.7l-.4-.3-3.8 1.2 1.2-3.7-.3-.4c-1.2-1.8-1.9-3.9-1.9-6.1C4.9 9.8 9.9 4.9 16 4.9s11.1 4.9 11.1 10.9S22.1 26.4 16 26.4zm6.1-8.1c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.8.2-.2.3-.9 1.1-1.1 1.3-.2.2-.4.3-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.3-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2 0-.4 0-.6l-1-2.5c-.3-.7-.5-.6-.8-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.6.2 2.2.1.7-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.1-.3-.2-.6-.4z"/></svg>
+</a>
 
 <script src="script.js"></script>
 </body>
