@@ -1,10 +1,17 @@
+---
+# The page is built from _data/content.yml - edit the content there (or in Pages CMS).
+---
+{%- assign c = site.data.content -%}
+{%- capture wa %}https://wa.me/{{ c.contact.whatsapp }}?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8{% endcapture -%}
+{%- capture tel %}tel:+{{ c.contact.phone | remove: "-" | remove: " " | remove_first: "0" | prepend: "972" }}{% endcapture -%}
+{%- assign address_q = c.contact.address | url_encode | replace: "+", "%20" -%}
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>חזי דרור | מספרת נשים וגברים בנתניה</title>
-<meta name="description" content="חזי דרור - מספרת נשים וגברים בנתניה. עיצוב שיער לגברים ולנשים, קביעת תור בוואטסאפ או בטלפון.">
+<title>{{ c.seo.title | escape }}</title>
+<meta name="description" content="{{ c.seo.description | escape }}">
 
 <!-- Favicon -->
 <link rel="icon" type="image/png" href="assets/favicon.png">
@@ -13,23 +20,29 @@
 <!-- Open Graph / Facebook, WhatsApp, LinkedIn -->
 <meta property="og:type" content="website">
 <meta property="og:locale" content="he_IL">
-<meta property="og:url" content="https://your-username.github.io/your-repo/">
-<meta property="og:title" content="חזי דרור | מספרת נשים וגברים בנתניה">
-<meta property="og:description" content="חזי דרור - מספרת נשים וגברים בנתניה. עיצוב שיער לגברים ולנשים, קביעת תור בוואטסאפ או בטלפון.">
-<meta property="og:image" content="https://your-username.github.io/your-repo/assets/og-image.jpg">
+<meta property="og:url" content="{{ '/' | absolute_url }}">
+<meta property="og:title" content="{{ c.seo.title | escape }}">
+<meta property="og:description" content="{{ c.seo.description | escape }}">
+<meta property="og:image" content="{{ '/assets/og-image.jpg' | absolute_url }}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 
 <!-- Twitter / X -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="חזי דרור | מספרת נשים וגברים בנתניה">
-<meta name="twitter:description" content="חזי דרור - מספרת נשים וגברים בנתניה. עיצוב שיער לגברים ולנשים, קביעת תור בוואטסאפ או בטלפון.">
-<meta name="twitter:image" content="https://your-username.github.io/your-repo/assets/og-image.jpg">
+<meta name="twitter:title" content="{{ c.seo.title | escape }}">
+<meta name="twitter:description" content="{{ c.seo.description | escape }}">
+<meta name="twitter:image" content="{{ '/assets/og-image.jpg' | absolute_url }}">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Frank+Ruhl+Libre:wght@500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<style>
+  :root {
+    --hero-image: url("{% include src.html path=c.hero.background %}");
+    --story-image: url("{% include src.html path=c.story.background %}");
+  }
+</style>
 </head>
 <body>
 
@@ -45,8 +58,8 @@
       <a href="#contact">יצירת קשר</a>
     </nav>
     <div class="header-actions">
-      <a href="tel:+972503479449" class="header-phone">📞 050-347-9449</a>
-      <a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="btn btn-primary header-cta" target="_blank" rel="noopener">קביעת תור</a>
+      <a href="{{ tel }}" class="header-phone">📞 {{ c.contact.phone }}</a>
+      <a href="{{ wa }}" class="btn btn-primary header-cta" target="_blank" rel="noopener">קביעת תור</a>
     </div>
     <button class="menu-toggle" id="menuToggle" aria-label="פתח תפריט">
       <span></span><span></span><span></span>
@@ -58,38 +71,22 @@
 <section id="top" class="hero">
   <div class="hero-bg" aria-hidden="true"></div>
   <div class="container hero-content">
-    <h1 class="reflect">מספרת נשים וגברים בנתניה</h1>
-    <p class="hero-tagline reflect">חזי עיצוב שיער - אני כאן למענך</p>
-    <div class="hero-actions">
-        <a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="btn btn-primary btn-lg" target="_blank" rel="noopener">לקביעת תור בוואטסאפ</a>
-        <a href="tel:+972503479449" class="btn btn-outline btn-lg">לקביעת תור טלפוני</a>
-      </div>
+    <h1 class="reflect">{{ c.hero.title | escape }}</h1>
+    <p class="hero-tagline reflect">{{ c.hero.tagline | escape }}</p>
+    {% include booking.html wa=wa tel=tel %}
   </div>
 </section>
 
 <!-- ===== Why us ===== -->
 <section class="values">
   <div class="container values-grid reveal">
+{%- for v in c.values %}
     <div class="value">
-      <span class="value-icon">✂️</span>
-      <h3>מקצועיות בלי פשרות</h3>
-      <p>דיוק בכל פרט, מהתספורת הקלאסית ועד הצבע.</p>
+      <span class="value-icon">{{ v.icon }}</span>
+      <h3>{{ v.title | escape }}</h3>
+      <p>{{ v.text | escape }}</p>
     </div>
-    <div class="value">
-      <span class="value-icon">⏱️</span>
-      <h3>מכבדים את הזמן שלך</h3>
-      <p>קובעים תור - ומגיעים לכיסא בזמן.</p>
-    </div>
-    <div class="value">
-      <span class="value-icon">💈</span>
-      <h3>נשים וגברים במקום אחד</h3>
-      <p>תספורות, זקן, צבע ועיצוב - הכל תחת קורת גג אחת.</p>
-    </div>
-    <div class="value">
-      <span class="value-icon">☕</span>
-      <h3>יחס אישי ואווירה חמה</h3>
-      <p>מקשיבים לך, ומתאימים את המראה בדיוק אליך.</p>
-    </div>
+{%- endfor %}
   </div>
 </section>
 
@@ -97,17 +94,19 @@
 <section id="about" class="section">
   <div class="container about-inner">
     <div class="about-photo reveal">
-      <img class="about-image" src="assets/hezi.jpg" alt="חזי דרור, מייסד המספרה" width="900" height="1200" loading="lazy">
-      <div class="experience-badge"><strong>30+</strong><span>שנות ניסיון</span></div>
+      <img class="about-image" src="{% include src.html path=c.about.photo %}" alt="{{ c.about.photo_alt | escape }}" width="900" height="1200" loading="lazy">
+      {%- if c.about.badge_number != "" %}
+      <div class="experience-badge"><strong>{{ c.about.badge_number | escape }}</strong><span>{{ c.about.badge_label | escape }}</span></div>
+      {%- endif %}
     </div>
     <div class="about-text reveal">
-      <p class="section-eyebrow">נעים להכיר</p>
-      <h2 class="section-title">האיש מאחורי המספריים</h2>
+      <p class="section-eyebrow">{{ c.about.eyebrow | escape }}</p>
+      <h2 class="section-title">{{ c.about.title | escape }}</h2>
       <div class="caption-box">
-        <p class="about-name">חזי דרור</p>
-        <p class="about-role">מייסד והלב הפועם של המספרה</p>
-        <p class="about-bio">מביא איתו ניסיון של למעלה מ-30 שנה בתחום, ניהול מוקפד וראייה עיצובית, ומתאים את הצבע והעיצוב במיוחד לתווי הפנים שלך.</p>
-        <p class="about-bio about-motto">ההקפדה על התוצאה היא מעל הכל - אין פשרות, הכל חייב להיות מושלם.</p>
+        <p class="about-name">{{ c.about.name | escape }}</p>
+        <p class="about-role">{{ c.about.role | escape }}</p>
+        <p class="about-bio">{{ c.about.bio | escape }}</p>
+        <p class="about-bio about-motto">{{ c.about.motto | escape }}</p>
       </div>
     </div>
   </div>
@@ -116,202 +115,130 @@
 <!-- ===== Our story ===== -->
 <section id="story" class="section story-section">
   <div class="container story-layout">
-    <img class="story-photo story-photo-top reveal" src="assets/story-cut.jpg" alt="חזי בזמן תספורת במספרה" width="800" height="1200" loading="lazy">
+    <img class="story-photo story-photo-top reveal" src="{% include src.html path=c.story.photo_top %}" alt="{{ c.story.photo_top_alt | escape }}" width="800" height="1200" loading="lazy">
     <div class="story-panel reveal">
-      <h2 class="section-title">הסיפור מאחורי המספרה</h2>
+      <h2 class="section-title">{{ c.story.title | escape }}</h2>
 
       <ol class="timeline">
-        <li><strong>1994</strong><span>הצעדים הראשונים במספרה בתל אביב</span></li>
-        <li><strong>2000</strong><span>הקמת המספרה</span></li>
-        <li><strong>היום</strong><span>הדור השלישי של הלקוחות</span></li>
+{%- for t in c.story.timeline %}
+        <li><strong>{{ t.year | escape }}</strong><span>{{ t.label | escape }}</span></li>
+{%- endfor %}
       </ol>
-
-      <h3>איך הכל התחיל</h3>
-      <p>הסיפור שלי התחיל בשנת 1994, במספרה גדולה בלב תל אביב. במשך שש שנים של עבודה קשה עברתי שם את כל התחנות - התחלתי בחפיפות וסיימתי כמנהל המספרה. אז הרגשתי שהגיע הרגע להיות בעל הבית, וכך נולד המקום.</p>
-      <p>בשנת 2000 הקמתי את המספרה, בצעדים קטנים ובטוחים. עם השנים קהל הלקוחות רק הלך וגדל, והיום אני כבר מספר את הדור השלישי של הלקוחות הראשונים שלי.</p>
-
-      <h3>החזון שלי</h3>
-      <p>להמשיך להגשים חלומות בתחום השיער לכל לקוח ולקוחה - ולראות כל אחד ואחת יוצאים מהמספרה מחייכים ומאושרים.</p>
-
-      <h3>מה מחכה לכם במספרה</h3>
-      <p>המספרה היא כמו סלון הבית - חמה, נעימה, והמקום הכי כיף להיפגש בו. כולם כאן משפחה אחת.</p>
+{% for sec in c.story.sections %}
+      <h3>{{ sec.heading | escape }}</h3>
+      {{ sec.text | escape | markdownify }}
+{%- endfor %}
       <ul class="story-list">
-        <li>שירות אישי ואדיב</li>
-        <li>יחס משפחתי ואווירה מיוחדת</li>
-        <li>תספורת, צבע ועיצוב שמותאמים במיוחד אליכם</li>
-        <li>ניסיון של למעלה מ-30 שנה בכל טיפול</li>
+{%- for h in c.story.highlights %}
+        <li>{{ h | escape }}</li>
+{%- endfor %}
       </ul>
 
       <div class="promise">
-        <h3>ההבטחה האישית שלי</h3>
-        <p>כל לקוח ולקוחה מקבלים ממני יחס אישי, הקשבה אמיתית והקפדה על כל פרט. אני לא מתפשר עד שהתוצאה מושלמת - ואתם יוצאים מהכיסא עם חיוך. כי אצלי אתם לא עוד לקוחות, אתם חלק מהמשפחה.</p>
-        <p class="promise-sign">חזי דרור</p>
+        <h3>{{ c.story.promise_title | escape }}</h3>
+        <p>{{ c.story.promise_text | escape }}</p>
+        <p class="promise-sign">{{ c.story.promise_sign | escape }}</p>
       </div>
     </div>
-    <img class="story-photo story-photo-bottom reveal" src="assets/story-comb.jpg" alt="חזי מסרק ומעצב שיער של לקוחה" width="799" height="1200" loading="lazy">
+    <img class="story-photo story-photo-bottom reveal" src="{% include src.html path=c.story.photo_bottom %}" alt="{{ c.story.photo_bottom_alt | escape }}" width="800" height="1200" loading="lazy">
   </div>
 </section>
 
-<!-- ===== Pages ===== -->
+<!-- ===== Services: jump to men / women / products ===== -->
 <section id="services" class="section section-alt">
   <div class="container">
-    <p class="section-eyebrow">מה תמצאו אצלנו</p>
-    <h2 class="section-title">עיצוב שיער לכל אחד ואחת</h2>
+    <p class="section-eyebrow">{{ c.services.eyebrow | escape }}</p>
+    <h2 class="section-title">{{ c.services.title | escape }}</h2>
     <div class="doors-grid reveal">
       <a class="door" href="#men">
         <span class="door-icon">💈</span>
-        <h3>עיצוב שיער לגברים</h3>
-        <p>תספורות, עיצוב זקן וגלריית עבודות</p>
+        <h3>{{ c.men.title | escape }}</h3>
+        <p>{{ c.services.men_text | escape }}</p>
         <span class="door-more">לעיצוב לגברים ↓</span>
       </a>
       <a class="door" href="#women">
         <span class="door-icon">✂️</span>
-        <h3>עיצוב שיער לנשים</h3>
-        <p>למה כדאי להיות לקוחה אצלי, וגלריית עבודות</p>
+        <h3>{{ c.women.title | escape }}</h3>
+        <p>{{ c.services.women_text | escape }}</p>
         <span class="door-more">לעיצוב לנשים ↓</span>
       </a>
       <a class="door" href="#products">
         <span class="door-icon">🧴</span>
-        <h3>המוצרים שלנו</h3>
-        <p>מוצרי טיפוח ועיצוב שאנחנו עובדים איתם</p>
+        <h3>{{ c.products.title | escape }}</h3>
+        <p>{{ c.services.products_text | escape }}</p>
         <span class="door-more">למוצרים שלנו ↓</span>
       </a>
     </div>
   </div>
 </section>
 
-
-<!-- ===== עיצוב שיער לגברים ===== -->
+<!-- ===== Men ===== -->
 <section id="men" class="page-hero">
   <div class="container">
-    <p class="eyebrow">מספרת גברים בנתניה</p>
-    <h2 class="chapter-title">עיצוב שיער לגברים</h2>
-    <p class="hero-sub">תספורות, עיצוב זקן וטיפוח - בדיוק כמו שאתה אוהב.</p>
-    <div class="hero-actions">
-        <a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="btn btn-primary btn-lg" target="_blank" rel="noopener">לקביעת תור בוואטסאפ</a>
-        <a href="tel:+972503479449" class="btn btn-outline btn-lg">לקביעת תור טלפוני</a>
-      </div>
+    <p class="eyebrow">{{ c.men.eyebrow | escape }}</p>
+    <h2 class="chapter-title">{{ c.men.title | escape }}</h2>
+    <p class="hero-sub">{{ c.men.subtitle | escape }}</p>
+    {% include booking.html wa=wa tel=tel %}
   </div>
 </section>
 
-<!-- ===== Men's details ===== -->
 <section class="section">
   <div class="container">
-    <p class="section-eyebrow">מה עושים אצלנו</p>
-    <h2 class="section-title">השירותים לגברים</h2>
-    <div class="cards-grid reveal">
-      <div class="card">
-        <div class="card-icon">✂️</div>
-        <h3>תספורת גברים</h3>
-        <p class="placeholder-text">✏️ פירוט - נמלא בהמשך</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">🧔</div>
-        <h3>עיצוב זקן</h3>
-        <p class="placeholder-text">✏️ פירוט - נמלא בהמשך</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">👦</div>
-        <h3>תספורת ילדים</h3>
-        <p class="placeholder-text">✏️ פירוט - נמלא בהמשך</p>
-      </div>
-    </div>
+    <p class="section-eyebrow">{{ c.men.cards_eyebrow | escape }}</p>
+    <h2 class="section-title">{{ c.men.cards_title | escape }}</h2>
+    {% include cards.html cards=c.men.cards %}
   </div>
 </section>
 
-<!-- ===== Men's gallery ===== -->
 <section class="section section-alt">
   <div class="container">
     <p class="section-eyebrow">עבודות אחרונות</p>
-    <h2 class="section-title">גלריה - גברים</h2>
-    <div class="gallery-grid reveal" aria-label="גלריית עבודות לגברים">
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-    </div>
+    <h2 class="section-title">{{ c.men.gallery_title | escape }}</h2>
+    {% include gallery.html items=c.men.gallery label=c.men.gallery_title %}
   </div>
 </section>
 
-<!-- ===== עיצוב שיער לנשים ===== -->
+<!-- ===== Women ===== -->
 <section id="women" class="page-hero">
   <div class="container">
-    <p class="eyebrow">מספרת נשים בנתניה</p>
-    <h2 class="chapter-title">עיצוב שיער לנשים</h2>
-    <p class="hero-sub">תספורות, צבע ועיצוב - בגישה אישית, בשבילך.</p>
-    <div class="hero-actions">
-        <a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="btn btn-primary btn-lg" target="_blank" rel="noopener">לקביעת תור בוואטסאפ</a>
-        <a href="tel:+972503479449" class="btn btn-outline btn-lg">לקביעת תור טלפוני</a>
-      </div>
+    <p class="eyebrow">{{ c.women.eyebrow | escape }}</p>
+    <h2 class="chapter-title">{{ c.women.title | escape }}</h2>
+    <p class="hero-sub">{{ c.women.subtitle | escape }}</p>
+    {% include booking.html wa=wa tel=tel %}
   </div>
 </section>
 
-<!-- ===== Why me ===== -->
 <section class="section">
   <div class="container">
-    <p class="section-eyebrow">בשבילך</p>
-    <h2 class="section-title">למה כדאי להיות לקוחה אצלי</h2>
-    <div class="cards-grid reveal">
-      <div class="card">
-        <div class="card-icon">✨</div>
-        <p class="placeholder-text">✏️ סיבה 1 - נמלא בהמשך</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">💛</div>
-        <p class="placeholder-text">✏️ סיבה 2 - נמלא בהמשך</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">🎨</div>
-        <p class="placeholder-text">✏️ סיבה 3 - נמלא בהמשך</p>
-      </div>
-    </div>
+    <p class="section-eyebrow">{{ c.women.cards_eyebrow | escape }}</p>
+    <h2 class="section-title">{{ c.women.cards_title | escape }}</h2>
+    {% include cards.html cards=c.women.cards %}
   </div>
 </section>
 
-<!-- ===== Women's gallery ===== -->
 <section class="section section-alt">
   <div class="container">
     <p class="section-eyebrow">עבודות אחרונות</p>
-    <h2 class="section-title">גלריה - נשים</h2>
-    <div class="gallery-grid reveal" aria-label="גלריית עבודות לנשים">
-      <button type="button" class="gallery-item" aria-label="הגדלת תמונה: אומברה בגוון נחושת על שיער ארוך גלי"><img src="assets/women/women-1.jpg" alt="אומברה בגוון נחושת על שיער ארוך גלי" loading="lazy"></button>
-      <button type="button" class="gallery-item" aria-label="הגדלת תמונה: בלייאז' בלונד חם על שיער גלי"><img src="assets/women/women-2.jpg" alt="בלייאז' בלונד חם על שיער גלי" loading="lazy"></button>
-      <button type="button" class="gallery-item" aria-label="הגדלת תמונה: צבע חום-דבש אחיד על שיער ארוך וחלק"><img src="assets/women/women-3.jpg" alt="צבע חום-דבש אחיד על שיער ארוך וחלק" loading="lazy"></button>
-      <button type="button" class="gallery-item" aria-label="הגדלת תמונה: בלייאז' בלונד עם תלתלים רכים"><img src="assets/women/women-4.jpg" alt="בלייאז' בלונד עם תלתלים רכים" loading="lazy"></button>
-      <button type="button" class="gallery-item" aria-label="הגדלת תמונה: צבע כהה עם גוונים עדינים"><img src="assets/women/women-5.jpg" alt="צבע כהה עם גוונים עדינים" loading="lazy"></button>
-      <button type="button" class="gallery-item" aria-label="הגדלת תמונה: אומברה מחום כהה לבלונד על שיער חלק"><img src="assets/women/women-6.jpg" alt="אומברה מחום כהה לבלונד על שיער חלק" loading="lazy"></button>
-    </div>
+    <h2 class="section-title">{{ c.women.gallery_title | escape }}</h2>
+    {% include gallery.html items=c.women.gallery label=c.women.gallery_title %}
   </div>
 </section>
 
-<!-- ===== המוצרים שלנו ===== -->
+<!-- ===== Products ===== -->
 <section id="products" class="page-hero">
   <div class="container">
-    <p class="eyebrow">טיפוח גם בבית</p>
-    <h2 class="chapter-title">המוצרים שלנו</h2>
-    <p class="hero-sub">המוצרים שאנחנו עובדים איתם במספרה. לפרטים ולהזמנה - שלחו הודעה.</p>
-    <div class="hero-actions">
-        <a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="btn btn-primary btn-lg" target="_blank" rel="noopener">לקביעת תור בוואטסאפ</a>
-        <a href="tel:+972503479449" class="btn btn-outline btn-lg">לקביעת תור טלפוני</a>
-      </div>
+    <p class="eyebrow">{{ c.products.eyebrow | escape }}</p>
+    <h2 class="chapter-title">{{ c.products.title | escape }}</h2>
+    <p class="hero-sub">{{ c.products.subtitle | escape }}</p>
+    {% include booking.html wa=wa tel=tel %}
   </div>
 </section>
 
-<!-- ===== Products gallery ===== -->
 <section class="section section-alt">
   <div class="container">
     <p class="section-eyebrow">מהמדף שלנו</p>
-    <h2 class="section-title">גלריית מוצרים</h2>
-    <div class="gallery-grid reveal" aria-label="גלריית מוצרים">
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
-    </div>
+    <h2 class="section-title">{{ c.products.gallery_title | escape }}</h2>
+    {% include gallery.html items=c.products.gallery label=c.products.gallery_title %}
   </div>
 </section>
 
@@ -319,10 +246,7 @@
 <section class="section cta-band">
   <div class="container">
     <h2 class="section-title">אהבתם? בואו נקבע תור</h2>
-    <div class="hero-actions">
-        <a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="btn btn-primary btn-lg" target="_blank" rel="noopener">לקביעת תור בוואטסאפ</a>
-        <a href="tel:+972503479449" class="btn btn-outline btn-lg">לקביעת תור טלפוני</a>
-      </div>
+    {% include booking.html wa=wa tel=tel %}
   </div>
 </section>
 
@@ -334,13 +258,9 @@
     <div class="hours-wrap reveal">
       <p class="open-status" id="openStatus" hidden></p>
       <ul class="hours-list" id="hoursList">
-        <li data-day="0"><span>ראשון</span><span>10:30 - 19:30</span></li>
-        <li data-day="1"><span>שני</span><span>סגור</span></li>
-        <li data-day="2"><span>שלישי</span><span>10:30 - 19:30</span></li>
-        <li data-day="3"><span>רביעי</span><span>10:30 - 19:30</span></li>
-        <li data-day="4"><span>חמישי</span><span>10:30 - 19:30</span></li>
-        <li data-day="5"><span>שישי</span><span>09:00 - 15:00</span></li>
-        <li data-day="6"><span>שבת</span><span>סגור</span></li>
+{%- for h in c.hours %}
+        <li data-day="{{ forloop.index0 }}"><span>{{ h.day | escape }}</span><span>{{ h.hours | escape }}</span></li>
+{%- endfor %}
       </ul>
     </div>
   </div>
@@ -352,33 +272,37 @@
     <p class="section-eyebrow">בואו נדבר</p>
     <h2 class="section-title">יצירת קשר</h2>
     <div class="contact-grid reveal">
-      <a class="contact-card" href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" target="_blank" rel="noopener">
+      <a class="contact-card" href="{{ wa }}" target="_blank" rel="noopener">
         <span class="contact-icon">💬</span>
         <span>לקביעת תור בוואטסאפ</span>
       </a>
-      <a class="contact-card" href="tel:+972503479449">
+      <a class="contact-card" href="{{ tel }}">
         <span class="contact-icon">📞</span>
-        <span>050-347-9449</span>
+        <span>{{ c.contact.phone }}</span>
       </a>
-      <a class="contact-card" href="https://instagram.com/your_salon" target="_blank" rel="noopener">
+      {%- if c.contact.instagram != "" %}
+      <a class="contact-card" href="{{ c.contact.instagram }}" target="_blank" rel="noopener">
         <span class="contact-icon">📷</span>
         <span>אינסטגרם</span>
       </a>
-      <a class="contact-card" href="https://facebook.com/your_salon" target="_blank" rel="noopener">
+      {%- endif %}
+      {%- if c.contact.facebook != "" %}
+      <a class="contact-card" href="{{ c.contact.facebook }}" target="_blank" rel="noopener">
         <span class="contact-icon">📘</span>
         <span>פייסבוק</span>
       </a>
-      <a class="contact-card" href="https://www.google.com/maps/search/?api=1&query=%D7%92%D7%95%D7%9C%D7%93%D7%94%20%D7%9E%D7%90%D7%99%D7%A8%2037%2C%20%D7%A0%D7%AA%D7%A0%D7%99%D7%94" target="_blank" rel="noopener">
+      {%- endif %}
+      <a class="contact-card" href="https://www.google.com/maps/search/?api=1&amp;query={{ address_q }}" target="_blank" rel="noopener">
         <span class="contact-icon">📍</span>
-        <span>גולדה מאיר 37, נתניה</span>
+        <span>{{ c.contact.address | escape }}</span>
       </a>
-      <a class="contact-card" href="https://waze.com/ul?q=%D7%92%D7%95%D7%9C%D7%93%D7%94%20%D7%9E%D7%90%D7%99%D7%A8%2037%2C%20%D7%A0%D7%AA%D7%A0%D7%99%D7%94&navigate=yes" target="_blank" rel="noopener">
+      <a class="contact-card" href="https://waze.com/ul?q={{ address_q }}&amp;navigate=yes" target="_blank" rel="noopener">
         <span class="contact-icon">🚗</span>
         <span>ניווט בוויז</span>
       </a>
     </div>
     <div class="map-wrap reveal">
-      <iframe title="מפה - חזי עיצוב שיער" src="https://www.google.com/maps?q=%D7%92%D7%95%D7%9C%D7%93%D7%94%20%D7%9E%D7%90%D7%99%D7%A8%2037%2C%20%D7%A0%D7%AA%D7%A0%D7%99%D7%94&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <iframe title="מפה - חזי עיצוב שיער" src="https://www.google.com/maps?q={{ address_q }}&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
   </div>
 </section>
@@ -390,15 +314,15 @@
       <a href="#men">עיצוב לגברים</a>
       <a href="#women">עיצוב לנשים</a>
       <a href="#products">המוצרים שלנו</a>
-      <a href="tel:+972503479449">050-347-9449</a>
+      <a href="{{ tel }}">{{ c.contact.phone }}</a>
     </nav>
-    <span>גולדה מאיר 37, נתניה</span>
+    <span>{{ c.contact.address | escape }}</span>
     <span>&copy; <span id="year"></span> חזי דרור - עיצוב שיער, נתניה. כל הזכויות שמורות.</span>
   </div>
 </footer>
 
 <!-- Floating WhatsApp button -->
-<a href="https://wa.me/972503479449?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%AA%D7%95%D7%A8" class="wa-float" target="_blank" rel="noopener" aria-label="קביעת תור בוואטסאפ">
+<a href="{{ wa }}" class="wa-float" target="_blank" rel="noopener" aria-label="קביעת תור בוואטסאפ">
   <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M16 3C8.8 3 3 8.7 3 15.8c0 2.5.7 4.9 2 7L3 29l6.4-2c2 1.1 4.3 1.7 6.6 1.7 7.2 0 13-5.7 13-12.8S23.2 3 16 3zm0 23.4c-2.1 0-4.1-.6-5.9-1.7l-.4-.3-3.8 1.2 1.2-3.7-.3-.4c-1.2-1.8-1.9-3.9-1.9-6.1C4.9 9.8 9.9 4.9 16 4.9s11.1 4.9 11.1 10.9S22.1 26.4 16 26.4zm6.1-8.1c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.8.2-.2.3-.9 1.1-1.1 1.3-.2.2-.4.3-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.3-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2 0-.4 0-.6l-1-2.5c-.3-.7-.5-.6-.8-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.6.2 2.2.1.7-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.1-.3-.2-.6-.4z"/></svg>
 </a>
 

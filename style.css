@@ -155,7 +155,7 @@ a { color: inherit; text-decoration: none; }
   background:
     radial-gradient(ellipse 60% 55% at 50% 55%, rgba(6,8,7,0.78), rgba(6,8,7,0.35) 70%, rgba(6,8,7,0.15) 100%),
     linear-gradient(180deg, rgba(6,8,7,0) 70%, var(--color-bg) 100%),
-    url("assets/hero-logo.jpg") center / cover no-repeat;
+    var(--hero-image, url("assets/uploads/hero-logo.jpg")) center / cover no-repeat;
 }
 .hero-content {
   text-align: center;
@@ -467,7 +467,7 @@ a { color: inherit; text-decoration: none; }
 .story-section {
   background:
     linear-gradient(180deg, rgba(5,4,3,0.93), rgba(5,4,3,0.86) 50%, rgba(5,4,3,0.95)),
-    url("assets/story-bg.jpg") center / cover no-repeat;
+    var(--story-image, url("assets/uploads/story-bg.jpg")) center / cover no-repeat;
 }
 .story-layout {
   max-width: 1280px;
@@ -786,7 +786,7 @@ a { color: inherit; text-decoration: none; }
   .hero-bg {
     background:
       linear-gradient(180deg, rgba(6,8,7,0) 0, rgba(6,8,7,0) 170px, rgba(6,8,7,0.6) 215px, #060807 300px),
-      url("assets/hero-logo.jpg") center 24px / 100% auto no-repeat,
+      var(--hero-image, url("assets/uploads/hero-logo.jpg")) center 24px / 100% auto no-repeat,
       #060807;
   }
   .hero-actions .btn { width: 100%; }

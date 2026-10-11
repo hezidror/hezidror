@@ -1,0 +1,15 @@
+<div class="cards-grid reveal">
+{%- for card in include.cards %}
+      <div class="card">
+        <div class="card-icon">{{ card.icon }}</div>
+        {%- if card.title != "" %}
+        <h3>{{ card.title | escape }}</h3>
+        {%- endif %}
+        {%- if card.text != "" %}
+        <p>{{ card.text | escape }}</p>
+        {%- else %}
+        <p class="placeholder-text">✏️ נמלא בהמשך</p>
+        {%- endif %}
+      </div>
+{%- endfor %}
+    </div>

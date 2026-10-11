@@ -1,0 +1,11 @@
+<div class="gallery-grid reveal" aria-label="{{ include.label | escape }}">
+{%- if include.items and include.items.size > 0 %}
+{%- for item in include.items %}
+      <button type="button" class="gallery-item" aria-label="הגדלת תמונה: {{ item.alt | escape }}"><img src="{% include src.html path=item.image %}" alt="{{ item.alt | escape }}" loading="lazy"></button>
+{%- endfor %}
+{%- else %}
+{%- for i in (1..3) %}
+      <div class="gallery-item"><span>📷 תמונה בקרוב</span></div>
+{%- endfor %}
+{%- endif %}
+    </div>

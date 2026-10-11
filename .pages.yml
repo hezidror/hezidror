@@ -1,0 +1,175 @@
+# Pages CMS (https://app.pagescms.org) - the editing screen for the site.
+# It edits _data/content.yml; uploaded photos go to assets/uploads.
+media:
+  input: assets/uploads
+  output: assets/uploads
+
+content:
+  - name: content
+    label: תוכן האתר
+    type: file
+    path: _data/content.yml
+    fields:
+      - name: hero
+        label: "כותרת ראשית (החלק העליון)"
+        type: object
+        fields:
+          - { name: title, label: "כותרת", type: string }
+          - { name: tagline, label: "שורה מתחת לכותרת", type: string }
+          - { name: background, label: "תמונת רקע", type: image }
+
+      - name: values
+        label: "פס היתרונות (4 אייקונים)"
+        type: object
+        list: true
+        fields:
+          - { name: icon, label: "אייקון (אימוג'י)", type: string }
+          - { name: title, label: "כותרת", type: string }
+          - { name: text, label: "טקסט", type: text }
+
+      - name: about
+        label: "האיש מאחורי המספריים"
+        type: object
+        fields:
+          - { name: eyebrow, label: "כותרת קטנה", type: string }
+          - { name: title, label: "כותרת", type: string }
+          - { name: photo, label: "תמונה", type: image }
+          - { name: photo_alt, label: "תיאור התמונה (לגוגל)", type: string }
+          - { name: badge_number, label: "מספר בעיגול הזהב", type: string, description: "למשל 30+. להשאיר ריק כדי להסתיר את העיגול" }
+          - { name: badge_label, label: "טקסט בעיגול הזהב", type: string }
+          - { name: name, label: "שם", type: string }
+          - { name: role, label: "תפקיד", type: string }
+          - { name: bio, label: "כמה מילים", type: text }
+          - { name: motto, label: "משפט מודגש", type: text }
+
+      - name: story
+        label: "הסיפור מאחורי המספרה"
+        type: object
+        fields:
+          - { name: title, label: "כותרת", type: string }
+          - name: timeline
+            label: "ציר זמן"
+            type: object
+            list: true
+            fields:
+              - { name: year, label: "שנה", type: string }
+              - { name: label, label: "תיאור", type: string }
+          - name: sections
+            label: "פסקאות"
+            type: object
+            list: true
+            fields:
+              - { name: heading, label: "כותרת", type: string }
+              - { name: text, label: "טקסט", type: text, description: "שורה ריקה בין פסקאות יוצרת פסקה חדשה" }
+          - { name: highlights, label: "נקודות (מה מחכה לכם)", type: string, list: true }
+          - { name: promise_title, label: "כותרת ההבטחה", type: string }
+          - { name: promise_text, label: "ההבטחה האישית", type: text }
+          - { name: promise_sign, label: "חתימה", type: string }
+          - { name: photo_top, label: "תמונה עליונה (בצד)", type: image }
+          - { name: photo_top_alt, label: "תיאור התמונה העליונה", type: string }
+          - { name: photo_bottom, label: "תמונה תחתונה (בצד)", type: image }
+          - { name: photo_bottom_alt, label: "תיאור התמונה התחתונה", type: string }
+          - { name: background, label: "תמונת רקע", type: image }
+
+      - name: services
+        label: "עיצוב שיער לכל אחד ואחת (כרטיסים)"
+        type: object
+        fields:
+          - { name: eyebrow, label: "כותרת קטנה", type: string }
+          - { name: title, label: "כותרת", type: string }
+          - { name: men_text, label: "טקסט בכרטיס הגברים", type: string }
+          - { name: women_text, label: "טקסט בכרטיס הנשים", type: string }
+          - { name: products_text, label: "טקסט בכרטיס המוצרים", type: string }
+
+      - name: men
+        label: "עיצוב שיער לגברים"
+        type: object
+        fields:
+          - { name: eyebrow, label: "כותרת קטנה", type: string }
+          - { name: title, label: "כותרת", type: string }
+          - { name: subtitle, label: "שורה מתחת לכותרת", type: string }
+          - { name: cards_eyebrow, label: "כותרת קטנה לשירותים", type: string }
+          - { name: cards_title, label: "כותרת השירותים", type: string }
+          - name: cards
+            label: "שירותים"
+            type: object
+            list: true
+            fields:
+              - { name: icon, label: "אייקון (אימוג'י)", type: string }
+              - { name: title, label: "שם השירות", type: string }
+              - { name: text, label: "פירוט", type: text }
+          - { name: gallery_title, label: "כותרת הגלריה", type: string }
+          - name: gallery
+            label: "גלריה"
+            type: object
+            list: true
+            fields:
+              - { name: image, label: "תמונה", type: image }
+              - { name: alt, label: "תיאור קצר (לגוגל)", type: string }
+
+      - name: women
+        label: "עיצוב שיער לנשים"
+        type: object
+        fields:
+          - { name: eyebrow, label: "כותרת קטנה", type: string }
+          - { name: title, label: "כותרת", type: string }
+          - { name: subtitle, label: "שורה מתחת לכותרת", type: string }
+          - { name: cards_eyebrow, label: "כותרת קטנה לסיבות", type: string }
+          - { name: cards_title, label: "כותרת הסיבות", type: string }
+          - name: cards
+            label: "למה כדאי להיות לקוחה אצלי"
+            type: object
+            list: true
+            fields:
+              - { name: icon, label: "אייקון (אימוג'י)", type: string }
+              - { name: title, label: "כותרת", type: string }
+              - { name: text, label: "טקסט", type: text }
+          - { name: gallery_title, label: "כותרת הגלריה", type: string }
+          - name: gallery
+            label: "גלריה"
+            type: object
+            list: true
+            fields:
+              - { name: image, label: "תמונה", type: image }
+              - { name: alt, label: "תיאור קצר (לגוגל)", type: string }
+
+      - name: products
+        label: "המוצרים שלנו"
+        type: object
+        fields:
+          - { name: eyebrow, label: "כותרת קטנה", type: string }
+          - { name: title, label: "כותרת", type: string }
+          - { name: subtitle, label: "שורה מתחת לכותרת", type: string }
+          - { name: gallery_title, label: "כותרת הגלריה", type: string }
+          - name: gallery
+            label: "גלריה"
+            type: object
+            list: true
+            fields:
+              - { name: image, label: "תמונה", type: image }
+              - { name: alt, label: "שם / תיאור המוצר", type: string }
+
+      - name: hours
+        label: "שעות פתיחה (ראשון עד שבת, לפי הסדר)"
+        type: object
+        list: { min: 7, max: 7 }
+        fields:
+          - { name: day, label: "יום", type: string }
+          - { name: hours, label: "שעות", type: string, description: "בפורמט 10:30 - 19:30, או: סגור" }
+
+      - name: contact
+        label: "פרטי קשר"
+        type: object
+        fields:
+          - { name: phone, label: "טלפון", type: string, description: "למשל 050-347-9449" }
+          - { name: whatsapp, label: "מספר וואטסאפ (בפורמט בינלאומי)", type: string, description: "למשל 972503479449 - בלי 0 בהתחלה ובלי מקפים" }
+          - { name: address, label: "כתובת", type: string }
+          - { name: instagram, label: "קישור לאינסטגרם", type: string, description: "להשאיר ריק כדי להסתיר" }
+          - { name: facebook, label: "קישור לפייסבוק", type: string, description: "להשאיר ריק כדי להסתיר" }
+
+      - name: seo
+        label: "גוגל ושיתוף ברשתות"
+        type: object
+        fields:
+          - { name: title, label: "כותרת הדף (בלשונית ובגוגל)", type: string }
+          - { name: description, label: "תיאור (בגוגל ובתצוגה מקדימה בוואטסאפ)", type: text }

@@ -1,0 +1,4 @@
+# GitHub Pages builds index.html from the template and _data/content.yml.
+title: חזי דרור - עיצוב שיער
+exclude:
+  - README.md
