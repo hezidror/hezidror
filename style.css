@@ -100,6 +100,20 @@ a { color: inherit; text-decoration: none; }
 }
 .nav-links a:hover { color: var(--color-primary-dark); }
 .nav-links a.active { color: var(--color-primary); }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+}
+.header-phone {
+  font-weight: 700;
+  color: var(--color-text);
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+.header-phone:hover { color: var(--color-primary); }
 .header-cta { flex-shrink: 0; }
 .menu-toggle {
   display: none;
@@ -290,6 +304,65 @@ a { color: inherit; text-decoration: none; }
   font-size: 0.95rem;
 }
 
+/* Caption box under "the man behind the scissors" */
+.caption-box {
+  border: 2px dashed rgba(212,175,106,0.55);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  background: rgba(34,29,24,0.6);
+}
+
+/* Values strip */
+.values {
+  padding: 56px 0;
+  background: var(--color-bg-alt);
+  border-top: 1px solid rgba(212,175,106,0.25);
+  border-bottom: 1px solid rgba(212,175,106,0.25);
+}
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 28px;
+  text-align: center;
+}
+.value-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary);
+  font-size: 1.9rem;
+  margin-bottom: 14px;
+}
+.value h3 { color: var(--color-primary); font-size: 1.15rem; margin-bottom: 6px; }
+.value p { color: var(--color-text-muted); font-size: 0.95rem; margin: 0; }
+
+/* Story panel */
+.story-section { background: var(--color-dark); }
+.story-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+.story-photo {
+  border-radius: var(--radius);
+  min-height: 320px;
+}
+.story-panel {
+  text-align: center;
+  padding: 40px 32px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #1c1813, #120f0c);
+  border: 1px solid rgba(212,175,106,0.25);
+  box-shadow: var(--shadow);
+}
+.story-panel .section-title { color: var(--color-primary); margin-bottom: 28px; }
+.story-panel h3 { font-size: 1.2rem; margin: 22px 0 8px; }
+.story-panel h3:first-of-type { margin-top: 0; }
+
 /* Page links ("doors") */
 .doors-grid {
   display: grid;
@@ -312,15 +385,6 @@ a { color: inherit; text-decoration: none; }
 .door-icon { font-size: 2.2rem; margin-bottom: 12px; }
 .door p { color: var(--color-text-muted); font-size: 0.95rem; }
 .door-more { margin-top: auto; color: var(--color-primary); font-weight: 700; }
-
-/* Story */
-.story-text {
-  max-width: 760px;
-  padding: 32px;
-  background: var(--color-surface);
-  border: 1px dashed rgba(212,175,106,0.35);
-  border-radius: var(--radius);
-}
 
 /* Booking CTA band */
 .cta-band { text-align: center; }
@@ -489,8 +553,15 @@ a { color: inherit; text-decoration: none; }
   .about-image { order: -1; width: 100%; max-width: 320px; margin: 0 auto; }
 }
 
+@media (max-width: 1180px) {
+  .header-phone { display: none; }
+}
+
 @media (max-width: 960px) {
   .nav-links { gap: 18px; font-size: 0.95rem; }
+  .values-grid { grid-template-columns: repeat(2, 1fr); }
+  .story-layout { grid-template-columns: 1fr; }
+  .story-photo { display: none; }
 }
 
 @media (max-width: 720px) {
