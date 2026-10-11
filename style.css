@@ -571,8 +571,6 @@ a { color: inherit; text-decoration: none; }
 }
 .contact-card:hover { transform: translateY(-4px); }
 .contact-icon { font-size: 1.4rem; }
-.contact-address { cursor: default; }
-.contact-address:hover { transform: none; }
 
 /* Hours */
 .hours-wrap {
