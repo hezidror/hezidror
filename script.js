@@ -56,7 +56,7 @@ const lightbox = document.getElementById('lightbox');
 
 if (lightbox) {
   const lightboxImg = lightbox.querySelector('img');
-  const photos = Array.from(document.querySelectorAll('.gallery-item img'));
+  let photos = [];
   let current = 0;
   let opener = null;
 
@@ -72,10 +72,12 @@ if (lightbox) {
     if (opener) opener.focus();
   };
 
-  photos.forEach((img, index) => {
+  // Browse within the gallery the clicked photo belongs to
+  document.querySelectorAll('.gallery-item img').forEach((img) => {
     img.closest('.gallery-item').addEventListener('click', (e) => {
       opener = e.currentTarget;
-      show(index);
+      photos = Array.from(opener.closest('.gallery-grid').querySelectorAll('img'));
+      show(photos.indexOf(img));
       lightbox.hidden = false;
       document.body.style.overflow = 'hidden';
       lightbox.querySelector('.lightbox-close').focus();
@@ -93,4 +95,24 @@ if (lightbox) {
     if (e.key === 'ArrowRight') show(current - 1);
     if (e.key === 'ArrowLeft') show(current + 1);
   });
+}
+
+// Highlight the menu link of the section currently on screen
+const navAnchors = document.querySelectorAll('.nav-links a[href^="#"]');
+const sectionsByLink = Array.from(navAnchors)
+  .map((link) => [link, document.querySelector(link.getAttribute('href'))])
+  .filter(([, section]) => section);
+
+const updateActiveLink = () => {
+  const line = window.innerHeight * 0.35;
+  let active = sectionsByLink[0];
+  sectionsByLink.forEach((entry) => {
+    if (entry[1].getBoundingClientRect().top <= line) active = entry;
+  });
+  navAnchors.forEach((link) => link.classList.toggle('active', link === active[0]));
+};
+
+if (sectionsByLink.length) {
+  window.addEventListener('scroll', updateActiveLink, { passive: true });
+  updateActiveLink();
 }
