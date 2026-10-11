@@ -50,3 +50,47 @@ if ('IntersectionObserver' in window) {
 } else {
   revealEls.forEach((el) => el.classList.add('visible'));
 }
+
+// Gallery lightbox: click a photo to view it large, arrows/keys to browse
+const lightbox = document.getElementById('lightbox');
+
+if (lightbox) {
+  const lightboxImg = lightbox.querySelector('img');
+  const photos = Array.from(document.querySelectorAll('.gallery-item img'));
+  let current = 0;
+  let opener = null;
+
+  const show = (index) => {
+    current = (index + photos.length) % photos.length;
+    lightboxImg.src = photos[current].src;
+    lightboxImg.alt = photos[current].alt;
+  };
+
+  const close = () => {
+    lightbox.hidden = true;
+    document.body.style.overflow = '';
+    if (opener) opener.focus();
+  };
+
+  photos.forEach((img, index) => {
+    img.closest('.gallery-item').addEventListener('click', (e) => {
+      opener = e.currentTarget;
+      show(index);
+      lightbox.hidden = false;
+      document.body.style.overflow = 'hidden';
+      lightbox.querySelector('.lightbox-close').focus();
+    });
+  });
+
+  lightbox.querySelector('.lightbox-close').addEventListener('click', close);
+  lightbox.querySelector('.lightbox-prev').addEventListener('click', () => show(current - 1));
+  lightbox.querySelector('.lightbox-next').addEventListener('click', () => show(current + 1));
+  lightbox.addEventListener('click', (e) => { if (e.target === lightbox) close(); });
+
+  document.addEventListener('keydown', (e) => {
+    if (lightbox.hidden) return;
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowRight') show(current - 1);
+    if (e.key === 'ArrowLeft') show(current + 1);
+  });
+}
