@@ -30,10 +30,41 @@ PRICES_SHEET_ID = os.environ.get("GOOGLE_PRICES_SHEET_ID", "").strip()
 PRICES_SHEET_DATA_RANGE = "Prices!A2:C1000"
 PRICES_SHEET_WRITE_START = "Prices!A2"
 
-# כרטסת לקוח: שדות ידניים (סוג טיפול/מספר צבע/חמצן/כמות) לכל (לקוח, תאריך),
-# בלשונית נפרדת באותו גיליון של המחירון - לא ביומן, שנשאר read-only.
-CLIENT_NOTES_SHEET_DATA_RANGE = "ClientNotes!A2:F5000"
+# כרטסת לקוח: שדות ידניים לכל (לקוח, תאריך), בלשונית נפרדת באותו גיליון של
+# המחירון - לא ביומן, שנשאר read-only. כל ביקור יכול להכיל כמה "שורות פרטים"
+# (RowIndex) - בעיקר לצבע, כשמערבבים שני מספרי צבע באותו ביקור.
+# עמודות: Client, Date, TreatmentType, RowIndex, Company, TypeDetail, Number,
+# Amount, OxidantType, OxidantAmount.
+CLIENT_NOTES_SHEET_DATA_RANGE = "ClientNotes!A2:J5000"
 CLIENT_NOTES_SHEET_WRITE_START = "ClientNotes!A2"
+
+# סט השדות שמוצג בכרטסת לכל סוג טיפול - person keys חייבים להישאר תואמים
+# ל-FIELD_SETS ב-templates/client_card.html (ה-JS שם מפעיל את אותה מיפוי
+# בצד הלקוח, כדי לא לדרוש רענון עמוד בכל שינוי בחירה).
+TREATMENT_FIELD_SETS = {
+    "צבע": [
+        {"key": "company", "label": "חברה"},
+        {"key": "type_detail", "label": "סוג הצבע"},
+        {"key": "number", "label": "מספר צבע"},
+        {"key": "amount", "label": "כמות צבע"},
+        {"key": "oxidant_type", "label": "סוג חמצן"},
+        {"key": "oxidant_amount", "label": "כמות חמצן"},
+    ],
+    "החלקה": [
+        {"key": "company", "label": "חברה"},
+        {"key": "type_detail", "label": "סוג החלקה"},
+        {"key": "amount", "label": "כמות"},
+    ],
+    "פסים": [
+        {"key": "amount", "label": "כמות החומר"},
+        {"key": "oxidant_type", "label": "סוג חמצן"},
+        {"key": "oxidant_amount", "label": "כמות חמצן"},
+    ],
+}
+TREATMENT_FIELD_SET_DEFAULT = [{"key": "type_detail", "label": "הערה"}]
+# סוגי טיפול שמאפשרים כמה שורות פרטים (כפתור "הוסף שורה") - בעיקר צבע, כשיש
+# ערבוב של כמה מספרי צבע באותו ביקור.
+MULTI_ROW_TREATMENT_TYPES = {"צבע"}
 
 # שמות הצבעים כפי שהם מוצגים בבורר הצבעים של Google Calendar (עברית ואנגלית),
 # ממופים ל-colorId שה-API מחזיר על כל אירוע. עמודה שלישית (C) בגיליון המחירון
@@ -170,7 +201,7 @@ def _read_client_note_rows():
 
 
 def load_client_notes():
-    """מחזיר dict: (שם לקוח, תאריך YYYY-MM-DD) -> {treatment_type, color_number, oxidant_type, color_amount}."""
+    """מחזיר dict: (שם לקוח, תאריך YYYY-MM-DD) -> {treatment_type, details: [שורות פרטים]}."""
     notes = {}
     for row in _read_client_note_rows():
         if len(row) < 2:
@@ -179,31 +210,48 @@ def load_client_notes():
         date = (row[1] or "").strip()
         if not client or not date:
             continue
-        notes[(client, date)] = {
-            "color_number": row[2] if len(row) > 2 else "",
-            "oxidant_type": row[3] if len(row) > 3 else "",
-            "color_amount": row[4] if len(row) > 4 else "",
-            "treatment_type": row[5] if len(row) > 5 else "",
+        treatment_type = row[2] if len(row) > 2 else ""
+        try:
+            row_index = int(row[3]) if len(row) > 3 and row[3] != "" else 0
+        except ValueError:
+            row_index = 0
+        detail = {
+            "company": row[4] if len(row) > 4 else "",
+            "type_detail": row[5] if len(row) > 5 else "",
+            "number": row[6] if len(row) > 6 else "",
+            "amount": row[7] if len(row) > 7 else "",
+            "oxidant_type": row[8] if len(row) > 8 else "",
+            "oxidant_amount": row[9] if len(row) > 9 else "",
         }
+        entry = notes.setdefault((client, date), {"treatment_type": "", "details": []})
+        if treatment_type:
+            entry["treatment_type"] = treatment_type
+        entry["details"].append((row_index, detail))
+
+    for entry in notes.values():
+        entry["details"] = [d for _, d in sorted(entry["details"], key=lambda t: t[0])]
     return notes
 
 
 def save_client_notes(notes):
-    """notes: dict (לקוח, תאריך) -> שדות. דריסה מלאה של הלשונית, כמו המחירון."""
+    """notes: dict (לקוח, תאריך) -> {treatment_type, details: [שורות פרטים]}.
+    דריסה מלאה של הלשונית, כמו המחירון."""
     if not PRICES_SHEET_ID:
         return
     service = get_sheets_service()
     service.spreadsheets().values().clear(
         spreadsheetId=PRICES_SHEET_ID, range=CLIENT_NOTES_SHEET_DATA_RANGE
     ).execute()
-    rows = [
-        [
-            client, date,
-            fields.get("color_number", ""), fields.get("oxidant_type", ""), fields.get("color_amount", ""),
-            fields.get("treatment_type", ""),
-        ]
-        for (client, date), fields in sorted(notes.items())
-    ]
+    rows = []
+    for (client, date), entry in sorted(notes.items()):
+        treatment_type = entry.get("treatment_type", "")
+        details = entry.get("details") or [{}]
+        for idx, d in enumerate(details):
+            rows.append([
+                client, date, treatment_type, idx,
+                d.get("company", ""), d.get("type_detail", ""), d.get("number", ""),
+                d.get("amount", ""), d.get("oxidant_type", ""), d.get("oxidant_amount", ""),
+            ])
     if rows:
         service.spreadsheets().values().update(
             spreadsheetId=PRICES_SHEET_ID,
@@ -455,27 +503,45 @@ def client_card(name):
 
     if request.method == "POST":
         all_notes = load_client_notes()
-        all_notes = {key: fields for key, fields in all_notes.items() if key[0] != name}
+        all_notes = {key: entry for key, entry in all_notes.items() if key[0] != name}
 
         dates = request.form.getlist("date")
         treatment_types = request.form.getlist("treatment_type")
-        color_numbers = request.form.getlist("color_number")
-        oxidant_types = request.form.getlist("oxidant_type")
-        color_amounts = request.form.getlist("color_amount")
-        for date, treatment_type, color_number, oxidant_type, color_amount in zip(
-            dates, treatment_types, color_numbers, oxidant_types, color_amounts
+        treatment_type_by_date = {
+            date.strip(): treatment_type.strip()
+            for date, treatment_type in zip(dates, treatment_types)
+            if date.strip()
+        }
+
+        detail_dates = request.form.getlist("detail_date")
+        companies = request.form.getlist("company")
+        type_details = request.form.getlist("type_detail")
+        numbers = request.form.getlist("number")
+        amounts = request.form.getlist("amount")
+        detail_oxidant_types = request.form.getlist("oxidant_type")
+        detail_oxidant_amounts = request.form.getlist("oxidant_amount")
+
+        details_by_date = defaultdict(list)
+        for detail_date, company, type_detail, number, amount, oxidant_type, oxidant_amount in zip(
+            detail_dates, companies, type_details, numbers, amounts, detail_oxidant_types, detail_oxidant_amounts
         ):
-            date = date.strip()
-            treatment_type = treatment_type.strip()
-            color_number, oxidant_type, color_amount = color_number.strip(), oxidant_type.strip(), color_amount.strip()
-            if not date or not (treatment_type or color_number or oxidant_type or color_amount):
-                continue
-            all_notes[(name, date)] = {
-                "treatment_type": treatment_type,
-                "color_number": color_number,
-                "oxidant_type": oxidant_type,
-                "color_amount": color_amount,
+            detail_date = detail_date.strip()
+            detail = {
+                "company": company.strip(),
+                "type_detail": type_detail.strip(),
+                "number": number.strip(),
+                "amount": amount.strip(),
+                "oxidant_type": oxidant_type.strip(),
+                "oxidant_amount": oxidant_amount.strip(),
             }
+            if detail_date and any(detail.values()):
+                details_by_date[detail_date].append(detail)
+
+        for date, treatment_type in treatment_type_by_date.items():
+            details = details_by_date.get(date, [])
+            if not treatment_type and not details:
+                continue
+            all_notes[(name, date)] = {"treatment_type": treatment_type, "details": details}
 
         save_client_notes(all_notes)
         flash("הכרטסת עודכנה בהצלחה")
@@ -506,10 +572,10 @@ def client_card(name):
             "date_display": dt.strftime("%d/%m/%Y"),
             "treatment": treatment,
             "price": normalized_prices.get(treatment, 0),
-            "treatment_type": note.get("treatment_type", ""),
-            "color_number": note.get("color_number", ""),
-            "oxidant_type": note.get("oxidant_type", ""),
-            "color_amount": note.get("color_amount", ""),
+            # ברירת המחדל לסוג הטיפול היא מה שרשום ביומן לאותו ביקור - עם
+            # אפשרות לשנות; ברגע שנשמר שינוי ידני, הוא גובר.
+            "treatment_type": note.get("treatment_type") or treatment,
+            "details": note.get("details") or [{}],
         })
     history.sort(key=lambda h: h["date"], reverse=True)
 
@@ -518,6 +584,9 @@ def client_card(name):
         name=name,
         history=history,
         treatment_types=sorted(prices.keys()),
+        field_sets=TREATMENT_FIELD_SETS,
+        field_set_default=TREATMENT_FIELD_SET_DEFAULT,
+        multi_row_types=sorted(MULTI_ROW_TREATMENT_TYPES),
         sheet_configured=bool(PRICES_SHEET_ID),
     )
 
