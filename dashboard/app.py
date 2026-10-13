@@ -61,6 +61,7 @@ SCOPES = [
 ]
 
 _cache = {"data": None, "fetched_at": None}
+_events_cache = {"events": None, "fetched_at": None}
 CACHE_TTL_SECONDS = 300
 
 
@@ -235,6 +236,22 @@ def fetch_events():
     return events
 
 
+def get_cached_events(force=False):
+    """כמו fetch_events(), אבל עם cache משותף (CACHE_TTL_SECONDS) - כל מסך
+    שצריך את היסטוריית היומן (דשבורד, לקוחות, כרטסת לקוח) קורא לזה במקום
+    ל-fetch_events() ישירות, כדי לא לבצע שליפה כבדה מה-API בכל בקשה."""
+    now = datetime.datetime.utcnow()
+    stale = (
+        not _events_cache["events"]
+        or not _events_cache["fetched_at"]
+        or (now - _events_cache["fetched_at"]).total_seconds() > CACHE_TTL_SECONDS
+    )
+    if force or stale:
+        _events_cache["events"] = fetch_events()
+        _events_cache["fetched_at"] = now
+    return _events_cache["events"]
+
+
 def parse_event(ev, color_id_to_treatment=None):
     """מפענח אירוע בודד ל-(לקוח, טיפול, dt), או None אם זה לא תור בר-חיוב.
     משותף בין compute_stats לבין עמודי כרטסת הלקוח, כדי ששני המקומות יזהו
@@ -358,7 +375,7 @@ def api_data():
         or (now - _cache["fetched_at"]).total_seconds() > CACHE_TTL_SECONDS
     )
     if force or stale:
-        events = fetch_events()
+        events = get_cached_events(force=force)
         prices = load_prices()
         price_colors = load_price_colors()
         _cache["data"] = compute_stats(events, prices, price_colors)
@@ -408,7 +425,7 @@ def prices_page():
 @app.route("/clients")
 @login_required
 def clients_list():
-    events = fetch_events()
+    events = get_cached_events()
     color_id_to_treatment = {color_id: name for name, color_id in load_price_colors().items()}
     now = datetime.datetime.now(datetime.timezone.utc)
 
@@ -459,7 +476,7 @@ def client_card(name):
         flash("הכרטסת עודכנה בהצלחה")
         return redirect(url_for("client_card", name=name))
 
-    events = fetch_events()
+    events = get_cached_events()
     prices = load_prices()
     price_colors = load_price_colors()
     color_id_to_treatment = {color_id: n for n, color_id in price_colors.items()}
