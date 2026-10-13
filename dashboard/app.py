@@ -30,6 +30,11 @@ PRICES_SHEET_ID = os.environ.get("GOOGLE_PRICES_SHEET_ID", "").strip()
 PRICES_SHEET_DATA_RANGE = "Prices!A2:C1000"
 PRICES_SHEET_WRITE_START = "Prices!A2"
 
+# כרטסת לקוח: שדות ידניים (מספר צבע/חמצן/כמות) לכל (לקוח, תאריך), בלשונית נפרדת
+# באותו גיליון של המחירון - לא ביומן, שנשאר read-only.
+CLIENT_NOTES_SHEET_DATA_RANGE = "ClientNotes!A2:E5000"
+CLIENT_NOTES_SHEET_WRITE_START = "ClientNotes!A2"
+
 # שמות הצבעים כפי שהם מוצגים בבורר הצבעים של Google Calendar (עברית ואנגלית),
 # ממופים ל-colorId שה-API מחזיר על כל אירוע. עמודה שלישית (C) בגיליון המחירון
 # מגדירה אילו טיפולים מזוהים לפי צבע האירוע במקום לפי שדה המיקום.
@@ -153,6 +158,55 @@ def save_prices(prices):
         json.dump(prices, f, ensure_ascii=False, indent=2, sort_keys=True)
 
 
+def _read_client_note_rows():
+    if not PRICES_SHEET_ID:
+        return []
+    service = get_sheets_service()
+    result = service.spreadsheets().values().get(
+        spreadsheetId=PRICES_SHEET_ID, range=CLIENT_NOTES_SHEET_DATA_RANGE
+    ).execute()
+    return result.get("values", [])
+
+
+def load_client_notes():
+    """מחזיר dict: (שם לקוח, תאריך YYYY-MM-DD) -> {color_number, oxidant_type, color_amount}."""
+    notes = {}
+    for row in _read_client_note_rows():
+        if len(row) < 2:
+            continue
+        client = normalize_treatment_name(row[0])
+        date = (row[1] or "").strip()
+        if not client or not date:
+            continue
+        notes[(client, date)] = {
+            "color_number": row[2] if len(row) > 2 else "",
+            "oxidant_type": row[3] if len(row) > 3 else "",
+            "color_amount": row[4] if len(row) > 4 else "",
+        }
+    return notes
+
+
+def save_client_notes(notes):
+    """notes: dict (לקוח, תאריך) -> שדות. דריסה מלאה של הלשונית, כמו המחירון."""
+    if not PRICES_SHEET_ID:
+        return
+    service = get_sheets_service()
+    service.spreadsheets().values().clear(
+        spreadsheetId=PRICES_SHEET_ID, range=CLIENT_NOTES_SHEET_DATA_RANGE
+    ).execute()
+    rows = [
+        [client, date, fields.get("color_number", ""), fields.get("oxidant_type", ""), fields.get("color_amount", "")]
+        for (client, date), fields in sorted(notes.items())
+    ]
+    if rows:
+        service.spreadsheets().values().update(
+            spreadsheetId=PRICES_SHEET_ID,
+            range=CLIENT_NOTES_SHEET_WRITE_START,
+            valueInputOption="RAW",
+            body={"values": rows},
+        ).execute()
+
+
 def fetch_events():
     service = get_calendar_service()
     time_min = f"{HISTORY_START_DATE}T00:00:00Z"
@@ -176,6 +230,30 @@ def fetch_events():
     return events
 
 
+def parse_event(ev, color_id_to_treatment=None):
+    """מפענח אירוע בודד ל-(לקוח, טיפול, dt), או None אם זה לא תור בר-חיוב.
+    משותף בין compute_stats לבין עמודי כרטסת הלקוח, כדי ששני המקומות יזהו
+    לקוח/טיפול באותה דרך בדיוק."""
+    start = ev.get("start", {})
+    start_str = start.get("dateTime") or start.get("date")
+    if not start_str:
+        return None
+    try:
+        dt = datetime.datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+
+    customer = (ev.get("description") or "").strip()
+    treatment = (color_id_to_treatment or {}).get(ev.get("colorId"))
+    if not treatment:
+        treatment = normalize_treatment_name(ev.get("location"))
+    if not customer or not treatment:
+        return None
+    return customer, treatment, dt
+
+
 def compute_stats(events, prices, price_colors=None):
     normalized_prices = {normalize_treatment_name(name): price for name, price in prices.items()}
     color_id_to_treatment = {color_id: name for name, color_id in (price_colors or {}).items()}
@@ -195,24 +273,11 @@ def compute_stats(events, prices, price_colors=None):
         if ev.get("eventType") == "birthday":
             continue
 
-        start = ev.get("start", {})
-        start_str = start.get("dateTime") or start.get("date")
-        if not start_str:
-            continue
-        try:
-            dt = datetime.datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-        except ValueError:
-            continue
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=datetime.timezone.utc)
-
-        customer = (ev.get("description") or "").strip()
-        treatment = color_id_to_treatment.get(ev.get("colorId"))
-        if not treatment:
-            treatment = normalize_treatment_name(ev.get("location"))
-        if not customer or not treatment:
+        parsed = parse_event(ev, color_id_to_treatment)
+        if not parsed:
             skipped += 1
             continue
+        customer, treatment, dt = parsed
 
         price = normalized_prices.get(treatment)
         if price is None:
@@ -333,6 +398,90 @@ def prices_page():
         return redirect(url_for("prices_page"))
 
     return render_template("prices.html", prices=load_prices())
+
+
+@app.route("/clients")
+@login_required
+def clients_list():
+    events = fetch_events()
+    color_id_to_treatment = {color_id: name for name, color_id in load_price_colors().items()}
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    names = set()
+    for ev in events:
+        if ev.get("eventType") == "birthday":
+            continue
+        parsed = parse_event(ev, color_id_to_treatment)
+        if not parsed:
+            continue
+        customer, _treatment, dt = parsed
+        if dt <= now:
+            names.add(customer)
+
+    return render_template("clients.html", names=sorted(names))
+
+
+@app.route("/clients/<path:name>", methods=["GET", "POST"])
+@login_required
+def client_card(name):
+    name = normalize_treatment_name(name)
+
+    if request.method == "POST":
+        all_notes = load_client_notes()
+        all_notes = {key: fields for key, fields in all_notes.items() if key[0] != name}
+
+        dates = request.form.getlist("date")
+        color_numbers = request.form.getlist("color_number")
+        oxidant_types = request.form.getlist("oxidant_type")
+        color_amounts = request.form.getlist("color_amount")
+        for date, color_number, oxidant_type, color_amount in zip(dates, color_numbers, oxidant_types, color_amounts):
+            date = date.strip()
+            color_number, oxidant_type, color_amount = color_number.strip(), oxidant_type.strip(), color_amount.strip()
+            if not date or not (color_number or oxidant_type or color_amount):
+                continue
+            all_notes[(name, date)] = {
+                "color_number": color_number,
+                "oxidant_type": oxidant_type,
+                "color_amount": color_amount,
+            }
+
+        save_client_notes(all_notes)
+        flash("הכרטסת עודכנה בהצלחה")
+        return redirect(url_for("client_card", name=name))
+
+    events = fetch_events()
+    price_colors = load_price_colors()
+    color_id_to_treatment = {color_id: n for n, color_id in price_colors.items()}
+    normalized_prices = {normalize_treatment_name(n): p for n, p in load_prices().items()}
+    notes = load_client_notes()
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    history = []
+    for ev in events:
+        if ev.get("eventType") == "birthday":
+            continue
+        parsed = parse_event(ev, color_id_to_treatment)
+        if not parsed:
+            continue
+        customer, treatment, dt = parsed
+        if customer != name or dt > now:
+            continue
+        date_key = dt.strftime("%Y-%m-%d")
+        note = notes.get((name, date_key), {})
+        history.append({
+            "date": date_key,
+            "date_display": dt.strftime("%d/%m/%Y"),
+            "treatment": treatment,
+            "price": normalized_prices.get(treatment, 0),
+            "color_number": note.get("color_number", ""),
+            "oxidant_type": note.get("oxidant_type", ""),
+            "color_amount": note.get("color_amount", ""),
+        })
+    history.sort(key=lambda h: h["date"], reverse=True)
+
+    return render_template(
+        "client_card.html", name=name, history=history, sheet_configured=bool(PRICES_SHEET_ID)
+    )
 
 
 if __name__ == "__main__":
