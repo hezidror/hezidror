@@ -109,16 +109,34 @@ def login_required(view):
     return wrapped
 
 
+_credentials = None
+_calendar_service = None
+_sheets_service = None
+
+
 def get_credentials():
-    return service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    global _credentials
+    if _credentials is None:
+        _credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    return _credentials
 
 
 def get_calendar_service():
-    return build("calendar", "v3", credentials=get_credentials(), cache_discovery=False)
+    # בונים את השירות פעם אחת ומשתמשים בו חוזר - build() עם
+    # cache_discovery=False מוריד מחדש מהרשת את כל מסמך ה-discovery של ה-API
+    # בכל קריאה, וזה נקרא הרבה פעמים בכל בקשה (במיוחד בשמירת כרטסת לקוח) -
+    # זה היה כנראה המקור העיקרי לעומס הזיכרון/קריסות.
+    global _calendar_service
+    if _calendar_service is None:
+        _calendar_service = build("calendar", "v3", credentials=get_credentials(), cache_discovery=False)
+    return _calendar_service
 
 
 def get_sheets_service():
-    return build("sheets", "v4", credentials=get_credentials(), cache_discovery=False)
+    global _sheets_service
+    if _sheets_service is None:
+        _sheets_service = build("sheets", "v4", credentials=get_credentials(), cache_discovery=False)
+    return _sheets_service
 
 
 def _read_price_rows():
