@@ -219,6 +219,10 @@ def fetch_events():
     time_max = (datetime.datetime.utcnow() + datetime.timedelta(days=FUTURE_HORIZON_DAYS)).isoformat() + "Z"
     events = []
     page_token = None
+    # רק השדות שבאמת בשימוש (ב-parse_event/compute_stats) - גוגל מחזיר ברירת
+    # מחדל גם attendees/reminders/extendedProperties וכו' שלא נחוצים כאן בכלל
+    # ומנפחים מאוד את כמות הנתונים בזיכרון עבור יומן עם הרבה היסטוריה.
+    fields = "items(description,location,colorId,eventType,start),nextPageToken"
     while True:
         resp = service.events().list(
             calendarId=CALENDAR_ID,
@@ -228,6 +232,7 @@ def fetch_events():
             orderBy="startTime",
             maxResults=2500,
             pageToken=page_token,
+            fields=fields,
         ).execute()
         events.extend(resp.get("items", []))
         page_token = resp.get("nextPageToken")
