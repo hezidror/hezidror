@@ -34,6 +34,7 @@
             <th>תאריך</th>
             <th>טיפול</th>
             <th>מחיר</th>
+            <th>סוג טיפול</th>
             <th>מספר צבע</th>
             <th>סוג חמצן</th>
             <th>כמות צבע</th>
@@ -48,6 +49,14 @@
             </td>
             <td>{{ row.treatment }}</td>
             <td>{{ row.price|int }}₪</td>
+            <td>
+              <select name="treatment_type" style="width:110px; padding:6px; border:1px solid var(--line); border-radius:6px;">
+                <option value=""{% if not row.treatment_type %} selected{% endif %}>-</option>
+                {% for t in treatment_types %}
+                <option value="{{ t }}"{% if row.treatment_type == t %} selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </td>
             <td><input type="text" name="color_number" value="{{ row.color_number }}"
                        style="width:90px; padding:6px; border:1px solid var(--line); border-radius:6px;"></td>
             <td><input type="text" name="oxidant_type" value="{{ row.oxidant_type }}"

@@ -30,9 +30,9 @@ PRICES_SHEET_ID = os.environ.get("GOOGLE_PRICES_SHEET_ID", "").strip()
 PRICES_SHEET_DATA_RANGE = "Prices!A2:C1000"
 PRICES_SHEET_WRITE_START = "Prices!A2"
 
-# כרטסת לקוח: שדות ידניים (מספר צבע/חמצן/כמות) לכל (לקוח, תאריך), בלשונית נפרדת
-# באותו גיליון של המחירון - לא ביומן, שנשאר read-only.
-CLIENT_NOTES_SHEET_DATA_RANGE = "ClientNotes!A2:E5000"
+# כרטסת לקוח: שדות ידניים (סוג טיפול/מספר צבע/חמצן/כמות) לכל (לקוח, תאריך),
+# בלשונית נפרדת באותו גיליון של המחירון - לא ביומן, שנשאר read-only.
+CLIENT_NOTES_SHEET_DATA_RANGE = "ClientNotes!A2:F5000"
 CLIENT_NOTES_SHEET_WRITE_START = "ClientNotes!A2"
 
 # שמות הצבעים כפי שהם מוצגים בבורר הצבעים של Google Calendar (עברית ואנגלית),
@@ -169,7 +169,7 @@ def _read_client_note_rows():
 
 
 def load_client_notes():
-    """מחזיר dict: (שם לקוח, תאריך YYYY-MM-DD) -> {color_number, oxidant_type, color_amount}."""
+    """מחזיר dict: (שם לקוח, תאריך YYYY-MM-DD) -> {treatment_type, color_number, oxidant_type, color_amount}."""
     notes = {}
     for row in _read_client_note_rows():
         if len(row) < 2:
@@ -182,6 +182,7 @@ def load_client_notes():
             "color_number": row[2] if len(row) > 2 else "",
             "oxidant_type": row[3] if len(row) > 3 else "",
             "color_amount": row[4] if len(row) > 4 else "",
+            "treatment_type": row[5] if len(row) > 5 else "",
         }
     return notes
 
@@ -195,7 +196,11 @@ def save_client_notes(notes):
         spreadsheetId=PRICES_SHEET_ID, range=CLIENT_NOTES_SHEET_DATA_RANGE
     ).execute()
     rows = [
-        [client, date, fields.get("color_number", ""), fields.get("oxidant_type", ""), fields.get("color_amount", "")]
+        [
+            client, date,
+            fields.get("color_number", ""), fields.get("oxidant_type", ""), fields.get("color_amount", ""),
+            fields.get("treatment_type", ""),
+        ]
         for (client, date), fields in sorted(notes.items())
     ]
     if rows:
@@ -431,15 +436,20 @@ def client_card(name):
         all_notes = {key: fields for key, fields in all_notes.items() if key[0] != name}
 
         dates = request.form.getlist("date")
+        treatment_types = request.form.getlist("treatment_type")
         color_numbers = request.form.getlist("color_number")
         oxidant_types = request.form.getlist("oxidant_type")
         color_amounts = request.form.getlist("color_amount")
-        for date, color_number, oxidant_type, color_amount in zip(dates, color_numbers, oxidant_types, color_amounts):
+        for date, treatment_type, color_number, oxidant_type, color_amount in zip(
+            dates, treatment_types, color_numbers, oxidant_types, color_amounts
+        ):
             date = date.strip()
+            treatment_type = treatment_type.strip()
             color_number, oxidant_type, color_amount = color_number.strip(), oxidant_type.strip(), color_amount.strip()
-            if not date or not (color_number or oxidant_type or color_amount):
+            if not date or not (treatment_type or color_number or oxidant_type or color_amount):
                 continue
             all_notes[(name, date)] = {
+                "treatment_type": treatment_type,
                 "color_number": color_number,
                 "oxidant_type": oxidant_type,
                 "color_amount": color_amount,
@@ -450,9 +460,10 @@ def client_card(name):
         return redirect(url_for("client_card", name=name))
 
     events = fetch_events()
+    prices = load_prices()
     price_colors = load_price_colors()
     color_id_to_treatment = {color_id: n for n, color_id in price_colors.items()}
-    normalized_prices = {normalize_treatment_name(n): p for n, p in load_prices().items()}
+    normalized_prices = {normalize_treatment_name(n): p for n, p in prices.items()}
     notes = load_client_notes()
     now = datetime.datetime.now(datetime.timezone.utc)
 
@@ -473,6 +484,7 @@ def client_card(name):
             "date_display": dt.strftime("%d/%m/%Y"),
             "treatment": treatment,
             "price": normalized_prices.get(treatment, 0),
+            "treatment_type": note.get("treatment_type", ""),
             "color_number": note.get("color_number", ""),
             "oxidant_type": note.get("oxidant_type", ""),
             "color_amount": note.get("color_amount", ""),
@@ -480,7 +492,11 @@ def client_card(name):
     history.sort(key=lambda h: h["date"], reverse=True)
 
     return render_template(
-        "client_card.html", name=name, history=history, sheet_configured=bool(PRICES_SHEET_ID)
+        "client_card.html",
+        name=name,
+        history=history,
+        treatment_types=sorted(prices.keys()),
+        sheet_configured=bool(PRICES_SHEET_ID),
     )
 
 
