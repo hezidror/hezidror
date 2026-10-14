@@ -146,7 +146,7 @@
    - **Root Directory**: `dashboard`
    - **Runtime**: Python 3
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn app:app`
+   - **Start Command**: `gunicorn app:app --workers 1 --timeout 120 --max-requests 200 --max-requests-jitter 50`
    - **Instance Type**: Free
 5. גללו למטה ל-**"Environment Variables"** > "Add Environment Variable",
    והוסיפו אחד-אחד:
@@ -168,6 +168,20 @@
 
 הערה: בתוכנית החינמית של Render השירות "נרדם" אחרי 15 דקות ללא שימוש,
 וטעינה ראשונה אחרי תקופת שינה לוקחת כ-30 שניות - זה תקין, לא תקלה.
+
+**חשוב - עדכנו את ה-Start Command אם יצרתם את השירות לפני שינוי זה:**
+ל-gunicorn יש טיימאאוט ברירת מחדל של 30 שניות בלבד לכל בקשה - אם
+בקשה (למשל פתיחת כרטסת לקוח, שקוראת כמה פעמים מול Google Calendar
+ו-Sheets) לא מסתיימת תוך 30 שניות - בעיקר אחרי "התעוררות" מספין-דאון,
+כשהרשת/המעבד עוד איטיים - gunicorn **הורג את התהליך מיד, בלי שגיאת
+Python בלוגים**, ומחזיר 502 לדפדפן. זה בדיוק התבנית שראינו בלוגים
+(הפעלה מחדש פתאומית בלי traceback). כדי לתקן: בעמוד השירות ב-Render,
+**Settings** > **Start Command**, עדכנו ל:
+`gunicorn app:app --workers 1 --timeout 120 --max-requests 200 --max-requests-jitter 50`
+(טיימאאוט ארוך יותר נותן לבקשה איטית להשלים בלי שתיהרג; worker יחיד
+שומר על זיכרון נמוך בתוכנית החינמית; `--max-requests` מפעיל מחדש את
+התהליך כל כ-200 בקשות כדי למנוע דליפת זיכרון הדרגתית). אחרי השינוי
+לחצו **Save Changes** - זה גם יגרום ל-deploy מחדש.
 
 **חשוב - בדקו ש-Auto-Deploy מופעל:** נתקלנו במקרה שבו השירות המשיך
 לרוץ על קוד **ישן בחודש**, למרות כמה דחיפות קוד ל-GitHub בינתיים -
