@@ -93,6 +93,8 @@ SCOPES = [
 
 _cache = {"data": None, "fetched_at": None}
 _events_cache = {"events": None, "fetched_at": None}
+_price_rows_cache = {"rows": None, "fetched_at": None}
+_client_notes_rows_cache = {"rows": None, "fetched_at": None}
 CACHE_TTL_SECONDS = 300
 
 
@@ -139,7 +141,7 @@ def get_sheets_service():
     return _sheets_service
 
 
-def _read_price_rows():
+def _fetch_price_rows():
     if not PRICES_SHEET_ID:
         return []
     service = get_sheets_service()
@@ -147,6 +149,22 @@ def _read_price_rows():
         spreadsheetId=PRICES_SHEET_ID, range=PRICES_SHEET_DATA_RANGE
     ).execute()
     return result.get("values", [])
+
+
+def _read_price_rows():
+    # קאש משותף ל-load_prices ול-load_price_colors - בלעדיו כל טעינת כרטסת
+    # לקוח הייתה קוראת את אותה לשונית Prices מגוגל פעמיים (אחת לכל פונקציה),
+    # ובלי שום קאש בכלל - זו הייתה תרומה מרכזית לכרטסת שנפתחת לאט.
+    now = datetime.datetime.utcnow()
+    stale = (
+        _price_rows_cache["rows"] is None
+        or not _price_rows_cache["fetched_at"]
+        or (now - _price_rows_cache["fetched_at"]).total_seconds() > CACHE_TTL_SECONDS
+    )
+    if stale:
+        _price_rows_cache["rows"] = _fetch_price_rows()
+        _price_rows_cache["fetched_at"] = now
+    return _price_rows_cache["rows"]
 
 
 def load_prices():
@@ -202,13 +220,17 @@ def save_prices(prices):
                 valueInputOption="RAW",
                 body={"values": rows},
             ).execute()
+        # מעדכנים את הקאש ישירות עם מה שבדיוק נכתב, כדי שה-GET שמגיע תכף אחרי
+        # ה-redirect לא יצטרך לקרוא שוב מה-API.
+        _price_rows_cache["rows"] = [[str(v) for v in row] for row in rows]
+        _price_rows_cache["fetched_at"] = datetime.datetime.utcnow()
         return
 
     with open(PRICES_FILE, "w", encoding="utf-8") as f:
         json.dump(prices, f, ensure_ascii=False, indent=2, sort_keys=True)
 
 
-def _read_client_note_rows():
+def _fetch_client_note_rows():
     if not PRICES_SHEET_ID:
         return []
     service = get_sheets_service()
@@ -216,6 +238,22 @@ def _read_client_note_rows():
         spreadsheetId=PRICES_SHEET_ID, range=CLIENT_NOTES_SHEET_DATA_RANGE
     ).execute()
     return result.get("values", [])
+
+
+def _read_client_note_rows():
+    # בלי קאש, כל פתיחת כרטסת לקוח (GET) וכל שמירה (POST, שגם קוראת את כל
+    # הלקוחות לפני הכתיבה) היו קוראות מחדש מגוגל עד 5000 שורות - עם ה-redirect
+    # שמגיע אחרי שמירה, זה הכפיל את מספר הקריאות ל-API בלחיצת "שמירה" אחת.
+    now = datetime.datetime.utcnow()
+    stale = (
+        _client_notes_rows_cache["rows"] is None
+        or not _client_notes_rows_cache["fetched_at"]
+        or (now - _client_notes_rows_cache["fetched_at"]).total_seconds() > CACHE_TTL_SECONDS
+    )
+    if stale:
+        _client_notes_rows_cache["rows"] = _fetch_client_note_rows()
+        _client_notes_rows_cache["fetched_at"] = now
+    return _client_notes_rows_cache["rows"]
 
 
 def load_client_notes():
@@ -277,6 +315,10 @@ def save_client_notes(notes):
             valueInputOption="RAW",
             body={"values": rows},
         ).execute()
+    # מעדכנים את הקאש ישירות עם מה שבדיוק נכתב (כולל המקרה של רשימה ריקה),
+    # כדי שה-redirect אחרי שמירה לא יקרא שוב את כל הלקוחות מגוגל.
+    _client_notes_rows_cache["rows"] = [[str(v) for v in row] for row in rows]
+    _client_notes_rows_cache["fetched_at"] = datetime.datetime.utcnow()
 
 
 def fetch_events():
