@@ -380,7 +380,10 @@ def parse_event(ev, color_id_to_treatment=None):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=datetime.timezone.utc)
 
-    customer = (ev.get("description") or "").strip()
+    # normalize_treatment_name (לא רק strip) - שתי רווחים בין שם פרטי למשפחה
+    # בתיאור האירוע ביומן (טעות הקלדה נפוצה) היו יוצרים "לקוח" כפול ברשימה,
+    # כי "דנה לוי" ו-"דנה  לוי" נשארו שני מחרוזות שונות.
+    customer = normalize_treatment_name(ev.get("description"))
     treatment = (color_id_to_treatment or {}).get(ev.get("colorId"))
     if not treatment:
         treatment = normalize_treatment_name(ev.get("location"))
