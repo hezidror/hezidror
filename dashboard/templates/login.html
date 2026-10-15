@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}כניסה - דשבורד חזי עיצוב שיער{% endblock %}
+{% block body %}
+<main style="max-width:360px; margin:80px auto;">
+  <div class="card">
+    <h2 style="margin-top:0; text-align:center;">חזי עיצוב שיער</h2>
+    <p class="muted" style="text-align:center; margin-top:-8px;">כניסה לדשבורד הפרטי</p>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="post">
+      <input type="password" name="password" placeholder="סיסמה" autofocus
+             style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--line); margin-bottom:14px; font-size:15px;">
+      <button type="submit"
+              style="width:100%; padding:12px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-size:15px; cursor:pointer;">
+        כניסה
+      </button>
+    </form>
+  </div>
+</main>
+{% endblock %}
