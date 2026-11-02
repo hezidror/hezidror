@@ -58,7 +58,7 @@
         <tbody>
           {% for row in rows %}
           <tr class="freq-row" data-name="{{ row.name|lower }}">
-            <td>{{ row.name }}</td>
+            <td><a href="{{ url_for('client_card', name=row.name) }}" style="color:var(--ink);">{{ row.name }}</a></td>
             <td><strong>{{ row.total }}</strong></td>
             {% for c in row.counts %}
             <td{% if c == 0 %} class="freq-cell-0"{% endif %}>{{ c if c > 0 else "-" }}</td>
