@@ -560,6 +560,35 @@ def clients_list():
     return render_template("clients.html", names=sorted(names))
 
 
+@app.route("/clients/frequency")
+@login_required
+def clients_frequency():
+    events = get_cached_events()
+    prices = load_prices()
+    price_colors = load_price_colors()
+    stats = compute_stats(events, prices, price_colors)
+    monthly = stats["monthly"]
+
+    months = sorted(monthly.keys())
+    visits_by_client = defaultdict(dict)
+    totals_by_client = defaultdict(int)
+    for month, clients_in_month in monthly.items():
+        for client, s in clients_in_month.items():
+            visits_by_client[client][month] = s["visits"]
+            totals_by_client[client] += s["visits"]
+
+    rows = [
+        {
+            "name": client,
+            "total": totals_by_client[client],
+            "counts": [visits_by_client[client].get(m, 0) for m in months],
+        }
+        for client in sorted(totals_by_client, key=lambda c: (-totals_by_client[c], c))
+    ]
+
+    return render_template("client_frequency.html", months=months, rows=rows)
+
+
 @app.route("/clients/<path:name>", methods=["GET", "POST"])
 @login_required
 def client_card(name):
