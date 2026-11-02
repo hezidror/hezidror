@@ -400,6 +400,7 @@ def compute_stats(events, prices, price_colors=None):
 
     monthly = defaultdict(lambda: defaultdict(lambda: {"visits": 0, "revenue": 0}))
     treatment_stats = defaultdict(lambda: {"count": 0, "revenue": 0})
+    monthly_treatment_stats = defaultdict(lambda: defaultdict(lambda: {"count": 0, "revenue": 0}))
     monthly_totals = defaultdict(float)
     yearly_totals = defaultdict(float)
     future_monthly_totals = defaultdict(float)
@@ -439,12 +440,16 @@ def compute_stats(events, prices, price_colors=None):
         treatment_stats[treatment]["count"] += 1
         treatment_stats[treatment]["revenue"] += price
 
+        monthly_treatment_stats[month_key][treatment]["count"] += 1
+        monthly_treatment_stats[month_key][treatment]["revenue"] += price
+
         monthly_totals[month_key] += price
         yearly_totals[year_key] += price
 
     return {
         "monthly": monthly,
         "treatment_stats": treatment_stats,
+        "monthly_treatment_stats": monthly_treatment_stats,
         "monthly_totals": monthly_totals,
         "yearly_totals": yearly_totals,
         "future_monthly_totals": future_monthly_totals,

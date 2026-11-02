@@ -64,8 +64,11 @@
   </div>
 
   <div class="card">
-    <h3 style="margin-top:0;">פופולריות טיפולים</h3>
-    <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <h3 style="margin:0;">פופולריות טיפולים</h3>
+      <select id="treatment-month-select" style="padding:8px; border-radius:8px; border:1px solid var(--line);"></select>
+    </div>
+    <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:center; margin-top:12px;">
       <div style="flex:1; min-width:260px; max-width:360px;">
         <canvas id="treatmentChart"></canvas>
       </div>
@@ -129,7 +132,7 @@ function render(data) {
   renderFutureTable(data.future_monthly_totals);
 
   renderRevenueChart(data.monthly_totals);
-  renderTreatments(data.treatment_stats);
+  renderTreatmentMonthSelect(data.monthly_treatment_stats, data.treatment_stats);
   renderMonthSelect(data.monthly, thisMonthKey);
 }
 
@@ -158,6 +161,22 @@ function renderRevenueChart(monthlyTotals) {
     data: { labels: months, datasets: [{ label: "הכנסה חודשית (₪)", data: values, backgroundColor: "#b8834a" }] },
     options: { responsive: true, plugins: { legend: { display: false } } }
   });
+}
+
+let selectedTreatmentMonth = "";
+let allTimeTreatmentStats = {};
+let monthlyTreatmentStatsData = {};
+
+function renderTreatmentMonthSelect(monthlyTreatmentStats, allTimeStats) {
+  monthlyTreatmentStatsData = monthlyTreatmentStats || {};
+  allTimeTreatmentStats = allTimeStats || {};
+  const select = document.getElementById("treatment-month-select");
+  const months = Object.keys(monthlyTreatmentStatsData).sort().reverse();
+  const keep = months.includes(selectedTreatmentMonth) ? selectedTreatmentMonth : "";
+  select.innerHTML = '<option value="">כל הזמן</option>' +
+    months.map(m => `<option value="${m}" ${m === keep ? "selected" : ""}>${m}</option>`).join("");
+  selectedTreatmentMonth = keep;
+  renderTreatments(keep ? monthlyTreatmentStatsData[keep] : allTimeTreatmentStats);
 }
 
 function renderTreatments(treatmentStats) {
@@ -208,6 +227,11 @@ function renderCustomerTable(monthly, month) {
 document.getElementById("month-select").addEventListener("change", (e) => {
   selectedMonth = e.target.value;
   if (currentData) renderCustomerTable(currentData.monthly, selectedMonth);
+});
+
+document.getElementById("treatment-month-select").addEventListener("change", (e) => {
+  selectedTreatmentMonth = e.target.value;
+  renderTreatments(selectedTreatmentMonth ? monthlyTreatmentStatsData[selectedTreatmentMonth] || {} : allTimeTreatmentStats);
 });
 
 document.getElementById("refresh-btn").addEventListener("click", () => loadData(true));
