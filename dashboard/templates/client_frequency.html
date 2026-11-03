@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}תדירות לקוחות - חזי עיצוב שיער{% endblock %}
+{% block head %}
+<style>
+  .freq-wrap { overflow-x: auto; }
+  .freq-wrap table { white-space: nowrap; }
+  .freq-wrap th:first-child, .freq-wrap td:first-child {
+    position: sticky; right: 0; background: var(--card); z-index: 1;
+    text-align: right; min-width: 140px;
+  }
+  .freq-wrap th:nth-child(2), .freq-wrap td:nth-child(2) {
+    position: sticky; right: 140px; background: var(--card); z-index: 1;
+  }
+  .freq-wrap td, .freq-wrap th { text-align: center; }
+  .freq-wrap td:first-child { text-align: right; }
+  .freq-cell-0 { color: var(--line); }
+</style>
+{% endblock %}
+{% block body %}
+<header>
+  <h1>תדירות לקוחות</h1>
+  <nav>
+    <a href="{{ url_for('clients_list') }}">לקוחות</a>
+    <a href="{{ url_for('dashboard') }}">לדשבורד</a>
+    <a href="{{ url_for('prices_page') }}">מחירון</a>
+    <a href="{{ url_for('logout') }}">התנתקות</a>
+  </nav>
+</header>
+<main>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card">
+    <p class="muted" style="margin-top:0;">
+      כמה פעמים כל לקוח/ה הגיע/ה בכל חודש - לפי תורים שכבר התקיימו. הטבלה
+      ממוינת לפי סה"כ ביקורים, מהגבוה לנמוך.
+    </p>
+    <input type="text" id="search" placeholder="חיפוש לקוח/ה..."
+           style="width:100%; padding:10px 14px; border:1px solid var(--line); border-radius:10px; font-size:15px; margin-bottom:16px;">
+
+    {% if not rows %}
+    <p class="muted">אין עדיין היסטוריית טיפולים להצגה.</p>
+    {% else %}
+    <div class="freq-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>לקוח/ה</th>
+            <th>סה"כ</th>
+            {% for m in months %}
+            <th>{{ m[5:7] }}/{{ m[0:4] }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="freq-row" data-name="{{ row.name|lower }}">
+            <td><a href="{{ url_for('client_card', name=row.name) }}" style="color:var(--ink);">{{ row.name }}</a></td>
+            <td><strong>{{ row.total }}</strong></td>
+            {% for c in row.counts %}
+            <td{% if c == 0 %} class="freq-cell-0"{% endif %}>{{ c if c > 0 else "-" }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</main>
+<footer>הטבלה מבוססת על תורים שהסתיימו ביומן - אותו מקור נתונים כמו הדשבורד.</footer>
+<script>
+const search = document.getElementById("search");
+search.addEventListener("input", () => {
+  const q = search.value.trim().toLowerCase();
+  document.querySelectorAll(".freq-row").forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? "" : "none";
+  });
+});
+</script>
+{% endblock %}

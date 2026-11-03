@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ name }} - כרטסת לקוח{% endblock %}
+{% block body %}
+<header>
+  <h1>{{ name }}</h1>
+  <nav>
+    <a href="{{ url_for('clients_list') }}">לקוחות</a>
+    <a href="{{ url_for('dashboard') }}">לדשבורד</a>
+    <a href="{{ url_for('logout') }}">התנתקות</a>
+  </nav>
+</header>
+<main>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if not sheet_configured %}
+  <div class="flash">
+    שמירת השדות הידניים דורשת חיבור לגיליון Google Sheets (GOOGLE_PRICES_SHEET_ID) -
+    כרגע לא מוגדר, אפשר לצפות בהיסטוריה אבל לא לשמור עריכות.
+  </div>
+  {% endif %}
+
+  {% if not history %}
+  <div class="card">
+    <p class="muted">אין עדיין היסטוריית טיפולים ללקוח/ה הזו.</p>
+  </div>
+  {% else %}
+  <form method="post">
+    {% for row in history %}
+    <div class="card visit-card" data-date="{{ row.date }}">
+      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px;">
+        <div>
+          <strong>{{ row.date_display }}</strong>
+          <span class="muted">· {{ row.treatment }} · {{ row.price|int }}₪</span>
+          <input type="hidden" name="date" value="{{ row.date }}">
+        </div>
+        <select name="treatment_type" class="treatment-type-select" data-date="{{ row.date }}"
+                style="padding:8px; border:1px solid var(--line); border-radius:8px;">
+          <option value=""{% if not row.treatment_type %} selected{% endif %}>- סוג טיפול -</option>
+          {% for t in treatment_types %}
+          <option value="{{ t }}"{% if row.treatment_type == t %} selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="detail-rows" data-date="{{ row.date }}">
+        {% for detail in row.details %}
+        <div class="detail-row" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:10px;">
+          <input type="hidden" name="detail_date" value="{{ row.date }}">
+          {% for key in ["company", "type_detail", "number", "amount", "oxidant_type", "oxidant_amount"] %}
+          <span class="field" data-field="{{ key }}" style="display:flex; flex-direction:column; gap:3px;">
+            <label class="muted" style="font-size:12px;"></label>
+            <input type="text" name="{{ key }}" value="{{ detail.get(key, '') }}"
+                   style="width:110px; padding:6px; border:1px solid var(--line); border-radius:6px;">
+          </span>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="add-detail-row" data-date="{{ row.date }}"
+              style="padding:6px 12px; border-radius:8px; border:1px solid var(--line); background:#faf7f2; cursor:pointer; font-size:13px;">
+        + הוסף שורה
+      </button>
+    </div>
+    {% endfor %}
+
+    <button type="submit" style="padding:10px 24px; border-radius:10px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-size:15px;">
+      שמירה
+    </button>
+  </form>
+  {% endif %}
+</main>
+<footer>השדות הידניים נשמרים בגיליון נפרד - היומן עצמו נשאר read-only, כלום לא נכתב אליו.</footer>
+
+<script>
+const FIELD_SETS = {{ field_sets|tojson }};
+const FIELD_SET_DEFAULT = {{ field_set_default|tojson }};
+const MULTI_ROW_TYPES = {{ multi_row_types|tojson }};
+
+function fieldSetFor(type) {
+  return FIELD_SETS[type] || FIELD_SET_DEFAULT;
+}
+
+function applyFieldSet(detailRowEl, type) {
+  const labelByKey = {};
+  fieldSetFor(type).forEach(f => { labelByKey[f.key] = f.label; });
+  detailRowEl.querySelectorAll(".field").forEach(span => {
+    const key = span.dataset.field;
+    if (labelByKey[key]) {
+      span.style.display = "";
+      span.querySelector("label").textContent = labelByKey[key];
+    } else {
+      span.style.display = "none";
+    }
+  });
+}
+
+function refreshVisit(date) {
+  const select = document.querySelector('.treatment-type-select[data-date="' + CSS.escape(date) + '"]');
+  const type = select ? select.value : "";
+  document.querySelectorAll('.detail-rows[data-date="' + CSS.escape(date) + '"] .detail-row').forEach(row => {
+    applyFieldSet(row, type);
+  });
+  const addBtn = document.querySelector('.add-detail-row[data-date="' + CSS.escape(date) + '"]');
+  if (addBtn) addBtn.style.display = MULTI_ROW_TYPES.includes(type) ? "" : "none";
+}
+
+document.querySelectorAll(".treatment-type-select").forEach(select => {
+  select.addEventListener("change", () => refreshVisit(select.dataset.date));
+  refreshVisit(select.dataset.date);
+});
+
+document.querySelectorAll(".add-detail-row").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const date = btn.dataset.date;
+    const container = document.querySelector('.detail-rows[data-date="' + CSS.escape(date) + '"]');
+    const rows = container.querySelectorAll(".detail-row");
+    const clone = rows[rows.length - 1].cloneNode(true);
+    clone.querySelectorAll('input[type="text"]').forEach(inp => { inp.value = ""; });
+    container.appendChild(clone);
+    const select = document.querySelector('.treatment-type-select[data-date="' + CSS.escape(date) + '"]');
+    applyFieldSet(clone, select ? select.value : "");
+  });
+});
+</script>
+{% endblock %}
