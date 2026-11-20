@@ -356,7 +356,7 @@ Contacts) → Router: [נמצא] / [לא נמצא → Create a Contact] → HTTP
 
 **א. בשרת (Render → Environment):** להוסיף `CHECKIN_SECRET` (מחרוזת אקראית
 ארוכה), `BUSINESS_WHATSAPP` (מספר העסק שמחובר ל-Green-API, למשל
-`972503479449`) ו-`PUBLIC_BASE_URL` (כתובת הדשבורד, למשל
+`9725XXXXXXXX`) ו-`PUBLIC_BASE_URL` (כתובת הדשבורד, למשל
 `https://xxxx.onrender.com`). פירוט ב-README.
 
 **ב. ב-Make:** תרחיש חדש, מודול ראשון **Webhooks → Custom webhook** → Add →

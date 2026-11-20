@@ -188,7 +188,7 @@
    - `GOOGLE_PRICES_SHEET_ID` = ה-ID מהגיליון בשלב 3 למעלה (**חובה על
      Render**, אחרת עריכות מחירון יימחקו כשהשירות נרדם ומתעורר)
    - `CHECKIN_SECRET` = מחרוזת אקראית ארוכה (אותה מחרוזת נכנסת ל-Make)
-   - `BUSINESS_WHATSAPP` = מספר העסק שמחובר ל-Green-API, למשל `972503479449`
+   - `BUSINESS_WHATSAPP` = מספר העסק שמחובר ל-Green-API, למשל `9725XXXXXXXX`
    - `PUBLIC_BASE_URL` = כתובת הדשבורד ב-Render, למשל `https://xxxx.onrender.com`
    - `LOYALTY_VISITS` = `10` (כל ביקור עשירי מתנה. `0` מבטל את הכרטיסייה)
 6. גללו ל-**"Secret Files"** > "Add Secret File":
