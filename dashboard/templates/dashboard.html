@@ -7,6 +7,7 @@
 <header>
   <h1>דשבורד הכנסות - חזי עיצוב שיער</h1>
   <nav>
+    <a href="{{ url_for('app_home') }}">אפליקציה</a>
     <a href="{{ url_for('clients_list') }}">לקוחות</a>
     <a href="{{ url_for('clients_frequency') }}">תדירות</a>
     <a href="{{ url_for('prices_page') }}">מחירון</a>
@@ -33,7 +34,7 @@
     </div>
     <div style="text-align:left;">
       <div class="muted" id="last-updated" style="font-size:12px;">-</div>
-      <button id="refresh-btn" style="margin-top:6px; padding:8px 16px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer;">
+      <button id="refresh-btn" style="margin-top:6px; padding:8px 16px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer;">
         רענון עכשיו
       </button>
     </div>
@@ -95,6 +96,8 @@
 <footer>הדשבורד קורא מהיומן בלבד ולא כותב אליו. גישה אישית פרטית בלבד.</footer>
 
 <script>
+Chart.defaults.color = "#b9ac99";
+Chart.defaults.borderColor = "#3a3128";
 let revenueChart, treatmentChart;
 let currentData = null;
 

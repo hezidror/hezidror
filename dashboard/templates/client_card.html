@@ -4,6 +4,7 @@
 <header>
   <h1>{{ name }}</h1>
   <nav>
+    <a href="{{ url_for('app_home') }}">אפליקציה</a>
     <a href="{{ url_for('clients_list') }}">לקוחות</a>
     <a href="{{ url_for('dashboard') }}">לדשבורד</a>
     <a href="{{ url_for('logout') }}">התנתקות</a>
@@ -15,6 +16,65 @@
       {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
     {% endif %}
   {% endwith %}
+
+  <div class="card profile">
+    <div class="profile-row">
+      <div class="profile-info">
+        {% if phone %}
+        <div><span class="muted">טלפון</span> <a href="tel:+{{ phone }}" dir="ltr" class="phone">{{ phone_display }}</a>
+          · <a href="https://wa.me/{{ phone }}" target="_blank" rel="noopener">וואטסאפ</a></div>
+        {% else %}
+        <div class="muted">אין טלפון שמור ללקוח/ה הזו.</div>
+        {% endif %}
+        <div><span class="muted">ביקורים</span> <strong>{{ history|length }}</strong>
+          {% if history %} · <span class="muted">אחרון</span> {{ history[0].date_display }}{% endif %}</div>
+        {% if next_appt %}
+        <div><span class="muted">תור הבא</span> <strong>{{ next_appt.display }}</strong> · {{ next_appt.treatment }}</div>
+        {% endif %}
+      </div>
+      <details class="phone-edit">
+        <summary>{{ "שינוי טלפון" if phone else "הוספת טלפון" }}</summary>
+        <form method="post" action="{{ url_for('set_client_phone', name=name) }}">
+          <input name="phone" type="tel" inputmode="tel" dir="ltr" value="{{ phone_display }}" placeholder="050-1234567" required>
+          <button type="submit" class="btn-gold">שמור</button>
+        </form>
+      </details>
+    </div>
+
+    {% if loyalty %}
+    <div class="punch">
+      <div class="punch-label">
+        <span>כרטיסייה <strong>{{ loyalty.stamps }}/{{ loyalty.total }}</strong></span>
+        {% if loyalty.next_is_gift %}
+        <span class="gift">🎁 הביקור הבא מתנה</span>
+        {% else %}
+        <span class="muted">עוד {{ loyalty.left }} ביקורים עד ביקור מתנה</span>
+        {% endif %}
+      </div>
+      <div class="stamps">
+        {% for i in range(loyalty.total) %}
+        <span class="stamp{% if i < loyalty.stamps %} on{% endif %}{% if i == loyalty.total - 1 %} last{% endif %}">{% if i == loyalty.total - 1 %}🎁{% elif i < loyalty.stamps %}✂{% endif %}</span>
+        {% endfor %}
+      </div>
+      <p class="muted" style="margin:6px 0 0; font-size:13px;">נספר אוטומטית מהתורים ביומן. כל ביקור {{ loyalty.total }} הוא מתנה.</p>
+    </div>
+    {% endif %}
+  </div>
+  <style>
+    .profile { display: flex; flex-direction: column; gap: 16px; }
+    .profile-row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .profile-info { display: flex; flex-direction: column; gap: 6px; font-size: 16px; min-width: 0; }
+    .profile-info .phone { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .phone-edit summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+    .phone-edit form { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .phone-edit input { padding: 10px 12px; border-radius: 10px; width: 170px; max-width: 100%; text-align: right; }
+    .punch-label { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .punch .gift { font-weight: 800; color: var(--accent); }
+    .stamps { display: grid; grid-template-columns: repeat({{ loyalty.total if loyalty else 10 }}, 1fr); gap: 6px; max-width: 520px; }
+    .stamp { aspect-ratio: 1; border-radius: 50%; border: 1.5px dashed var(--line); display: grid; place-items: center; font-size: 14px; color: var(--on-accent); }
+    .stamp.on { border: 0; background: var(--gold-grad); }
+    .stamp.last { border-color: var(--accent); }
+  </style>
 
   {% if not sheet_configured %}
   <div class="flash">
@@ -61,13 +121,13 @@
         {% endfor %}
       </div>
       <button type="button" class="add-detail-row" data-date="{{ row.date }}"
-              style="padding:6px 12px; border-radius:8px; border:1px solid var(--line); background:#faf7f2; cursor:pointer; font-size:13px;">
+              style="padding:6px 12px; border-radius:8px; border:1px solid var(--line); background:var(--chip); cursor:pointer; font-size:13px;">
         + הוסף שורה
       </button>
     </div>
     {% endfor %}
 
-    <button type="submit" style="padding:10px 24px; border-radius:10px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-size:15px;">
+    <button type="submit" style="padding:10px 24px; border-radius:10px; border:none; background:var(--gold-grad); color:var(--on-accent); font-weight:800; cursor:pointer; font-size:15px;">
       שמירה
     </button>
   </form>

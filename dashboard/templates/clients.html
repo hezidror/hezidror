@@ -4,6 +4,7 @@
 <header>
   <h1>לקוחות</h1>
   <nav>
+    <a href="{{ url_for('app_home') }}">אפליקציה</a>
     <a href="{{ url_for('clients_frequency') }}">תדירות</a>
     <a href="{{ url_for('dashboard') }}">לדשבורד</a>
     <a href="{{ url_for('prices_page') }}">מחירון</a>
@@ -17,7 +18,7 @@
     <div id="client-list" style="display:flex; flex-wrap:wrap; gap:8px;">
       {% for name in names %}
       <a href="{{ url_for('client_card', name=name) }}" class="client-chip" data-name="{{ name|lower }}"
-         style="padding:10px 16px; border-radius:999px; border:1px solid var(--line); background:#faf7f2; text-decoration:none; color:var(--ink); font-size:14px;">
+         style="padding:10px 16px; border-radius:999px; border:1px solid var(--line); background:var(--chip); text-decoration:none; color:var(--ink); font-size:14px;">
         {{ name }}
       </a>
       {% endfor %}

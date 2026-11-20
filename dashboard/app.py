@@ -1,11 +1,15 @@
 import os
 import re
+import io
 import json
+import hmac
 import datetime
+import urllib.parse
 from collections import defaultdict
 from functools import wraps
+from zoneinfo import ZoneInfo
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, Response
 from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -37,6 +41,34 @@ PRICES_SHEET_WRITE_START = "Prices!A2"
 # Amount, OxidantType, OxidantAmount.
 CLIENT_NOTES_SHEET_DATA_RANGE = "ClientNotes!A2:J5000"
 CLIENT_NOTES_SHEET_WRITE_START = "ClientNotes!A2"
+
+# אפליקציית המספרה (צ'ק-אין בברקוד + כרטיסייה):
+# Clients - טלפון <-> שם (השם זהה לשם שבתיאור התור ביומן ובאנשי הקשר).
+#   עמודות: Phone (972XXXXXXXXX), Name, CreatedAt, Source.
+# Checkins - כל סריקה של הברקוד בכניסה. עמודות: Time, Phone, Name, IsNew.
+# שתי הלשוניות נוצרות אוטומטית בגיליון בפעם הראשונה שצריך אותן.
+CLIENTS_TAB = "Clients"
+CHECKINS_TAB = "Checkins"
+CLIENTS_SHEET_DATA_RANGE = "Clients!A2:D5000"
+CHECKINS_SHEET_DATA_RANGE = "Checkins!A2:D20000"
+TAB_HEADERS = {
+    CLIENTS_TAB: ["Phone", "Name", "CreatedAt", "Source"],
+    CHECKINS_TAB: ["Time", "Phone", "Name", "IsNew"],
+}
+
+TIMEZONE = os.environ.get("TIMEZONE", "Asia/Jerusalem")
+LOCAL_TZ = ZoneInfo(TIMEZONE)
+# סוד משותף בין Make לבין הדשבורד - בלעדיו אף אחד מבחוץ לא יכול "לרשום הגעה".
+CHECKIN_SECRET = os.environ.get("CHECKIN_SECRET", "").strip()
+# המספר של העסק (המספר המחובר ל-Green-API) - אליו הלקוח שולח הודעה מהברקוד.
+BUSINESS_WHATSAPP = re.sub(r"\D", "", os.environ.get("BUSINESS_WHATSAPP", ""))
+CHECKIN_KEYWORD = os.environ.get("CHECKIN_KEYWORD", "הגעתי").strip()
+CHECKIN_MESSAGE = os.environ.get("CHECKIN_MESSAGE", f"היי, {CHECKIN_KEYWORD} למספרה").strip()
+# כתובת הדשבורד כפי שהיא נראית מבחוץ (למשל https://hezi-dashboard.onrender.com),
+# לקישורים שנשלחים בוואטסאפ. אם ריק - נלקח מהבקשה עצמה.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+# כרטיסייה: כל ביקור N הוא מתנה. 0 מבטל את הכרטיסייה.
+LOYALTY_VISITS = int(os.environ.get("LOYALTY_VISITS", "10") or 0)
 
 # סט השדות שמוצג בכרטסת לכל סוג טיפול - person keys חייבים להישאר תואמים
 # ל-FIELD_SETS ב-templates/client_card.html (ה-JS שם מפעיל את אותה מיפוי
@@ -96,6 +128,9 @@ _cache = {"data": None, "fetched_at": None}
 _events_cache = {"events": None, "fetched_at": None}
 _price_rows_cache = {"rows": None, "fetched_at": None}
 _client_notes_rows_cache = {"rows": None, "fetched_at": None}
+_clients_rows_cache = {"rows": None, "fetched_at": None}
+_checkins_rows_cache = {"rows": None, "fetched_at": None}
+_ensured_tabs = set()
 CACHE_TTL_SECONDS = 300
 
 
@@ -331,7 +366,7 @@ def fetch_events():
     # רק השדות שבאמת בשימוש (ב-parse_event/compute_stats) - גוגל מחזיר ברירת
     # מחדל גם attendees/reminders/extendedProperties וכו' שלא נחוצים כאן בכלל
     # ומנפחים מאוד את כמות הנתונים בזיכרון עבור יומן עם הרבה היסטוריה.
-    fields = "items(description,location,colorId,eventType,start),nextPageToken"
+    fields = "items(id,description,location,colorId,eventType,start),nextPageToken"
     while True:
         resp = service.events().list(
             calendarId=CALENDAR_ID,
@@ -468,7 +503,10 @@ def login():
         if DASHBOARD_PASSWORD and password == DASHBOARD_PASSWORD:
             session["authed"] = True
             session.permanent = True
-            next_url = request.args.get("next") or url_for("dashboard")
+            next_url = request.args.get("next") or url_for("app_home")
+            # רק נתיב פנימי - לא מפנים לאתר אחר דרך ?next=
+            if not next_url.startswith("/") or next_url.startswith("//"):
+                next_url = url_for("app_home")
             return redirect(next_url)
         flash("סיסמה שגויה")
     return render_template("login.html")
@@ -677,9 +715,26 @@ def client_card(name):
         })
     history.sort(key=lambda h: h["date"], reverse=True)
 
+    phone = phone_for_name(name)
+    next_appt = None
+    for ev in events:
+        if ev.get("eventType") == "birthday":
+            continue
+        parsed = parse_event(ev, color_id_to_treatment)
+        if parsed and parsed[0] == name and parsed[2] > now:
+            local = parsed[2].astimezone(LOCAL_TZ)
+            if next_appt is None or local < next_appt["dt"]:
+                next_appt = {"dt": local, "treatment": parsed[1]}
+    if next_appt:
+        next_appt["display"] = f"{HEB_DAYS[next_appt['dt'].weekday()]} {next_appt['dt'].strftime('%d/%m %H:%M')}"
+
     return render_template(
         "client_card.html",
         name=name,
+        phone=phone,
+        phone_display=format_phone(phone),
+        loyalty=loyalty_for(len(history)),
+        next_appt=next_appt,
         history=history,
         treatment_types=sorted(prices.keys()),
         field_sets=TREATMENT_FIELD_SETS,
@@ -687,6 +742,411 @@ def client_card(name):
         multi_row_types=sorted(MULTI_ROW_TREATMENT_TYPES),
         sheet_configured=bool(PRICES_SHEET_ID),
     )
+
+
+# ---------------------------------------------------------------------------
+# אפליקציית המספרה: צ'ק-אין בברקוד, תורים של היום, כרטיסייה, התקנה בטלפון/אייפד
+# ---------------------------------------------------------------------------
+
+HEB_DAYS = ["יום ב'", "יום ג'", "יום ד'", "יום ה'", "יום ו'", "שבת", "יום א'"]
+
+
+def normalize_phone(raw):
+    """כל צורה של מספר (050-1234567, +972 50..., 972501234567@c.us) -> 972501234567."""
+    d = re.sub(r"\D", "", str(raw or ""))
+    if d.startswith("00"):
+        d = d[2:]
+    if d.startswith("0") and len(d) == 10:
+        d = "972" + d[1:]
+    return d if len(d) >= 9 else ""
+
+
+def format_phone(phone):
+    if phone.startswith("972") and len(phone) == 12:
+        local = "0" + phone[3:]
+        return f"{local[:3]}-{local[3:]}"
+    return phone
+
+
+def local_now():
+    return datetime.datetime.now(LOCAL_TZ)
+
+
+def ensure_tab(title):
+    """יוצר לשונית (עם שורת כותרות) בגיליון אם היא עוד לא קיימת."""
+    if title in _ensured_tabs or not PRICES_SHEET_ID:
+        return
+    service = get_sheets_service()
+    meta = service.spreadsheets().get(spreadsheetId=PRICES_SHEET_ID, fields="sheets.properties.title").execute()
+    titles = {s["properties"]["title"] for s in meta.get("sheets", [])}
+    if title not in titles:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=PRICES_SHEET_ID,
+            body={"requests": [{"addSheet": {"properties": {"title": title}}}]},
+        ).execute()
+        service.spreadsheets().values().update(
+            spreadsheetId=PRICES_SHEET_ID, range=f"{title}!A1",
+            valueInputOption="RAW", body={"values": [TAB_HEADERS[title]]},
+        ).execute()
+    _ensured_tabs.add(title)
+
+
+def _read_tab_rows(cache, title, data_range, force=False):
+    if not PRICES_SHEET_ID:
+        return cache["rows"] or []
+    now = datetime.datetime.utcnow()
+    stale = (
+        cache["rows"] is None
+        or not cache["fetched_at"]
+        or (now - cache["fetched_at"]).total_seconds() > CACHE_TTL_SECONDS
+    )
+    if force or stale:
+        ensure_tab(title)
+        result = get_sheets_service().spreadsheets().values().get(
+            spreadsheetId=PRICES_SHEET_ID, range=data_range
+        ).execute()
+        cache["rows"] = result.get("values", [])
+        cache["fetched_at"] = now
+    return cache["rows"]
+
+
+def _append_row(cache, title, row):
+    if PRICES_SHEET_ID:
+        ensure_tab(title)
+        get_sheets_service().spreadsheets().values().append(
+            spreadsheetId=PRICES_SHEET_ID, range=f"{title}!A1",
+            valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+            body={"values": [row]},
+        ).execute()
+    if cache["rows"] is None:
+        cache["rows"] = []
+        cache["fetched_at"] = datetime.datetime.utcnow()
+    cache["rows"].append([str(v) for v in row])
+
+
+def load_clients(force=False):
+    """phone -> {"name", "row"} מתוך לשונית Clients (row = מספר השורה בגיליון)."""
+    clients = {}
+    rows = _read_tab_rows(_clients_rows_cache, CLIENTS_TAB, CLIENTS_SHEET_DATA_RANGE, force)
+    for i, row in enumerate(rows):
+        phone = normalize_phone(row[0] if row else "")
+        name = normalize_treatment_name(row[1]) if len(row) > 1 else ""
+        if phone and name:
+            clients[phone] = {"name": name, "row": i + 2}
+    return clients
+
+
+def phone_for_name(name):
+    for phone, c in load_clients().items():
+        if c["name"] == name:
+            return phone
+    return ""
+
+
+def upsert_client(phone, name, source):
+    """שומר/מעדכן לקוח לפי טלפון. מחזיר (name, is_new)."""
+    clients = load_clients()
+    existing = clients.get(phone)
+    if existing:
+        if name and name != existing["name"]:
+            if PRICES_SHEET_ID:
+                get_sheets_service().spreadsheets().values().update(
+                    spreadsheetId=PRICES_SHEET_ID, range=f"{CLIENTS_TAB}!B{existing['row']}",
+                    valueInputOption="RAW", body={"values": [[name]]},
+                ).execute()
+            _clients_rows_cache["rows"][existing["row"] - 2][1:2] = [name]
+            return name, False
+        return existing["name"], False
+    _append_row(_clients_rows_cache, CLIENTS_TAB, [phone, name, local_now().isoformat(timespec="seconds"), source])
+    return name, True
+
+
+def load_checkins_today():
+    today = local_now().strftime("%Y-%m-%d")
+    out = []
+    for row in _read_tab_rows(_checkins_rows_cache, CHECKINS_TAB, CHECKINS_SHEET_DATA_RANGE):
+        if len(row) < 3 or not row[0].startswith(today):
+            continue
+        out.append({"time": row[0], "phone": normalize_phone(row[1]), "name": row[2],
+                    "is_new": len(row) > 3 and row[3] == "yes"})
+    return out
+
+
+def loyalty_for(visits):
+    """visits = ביקורים שהסתיימו (לפי היומן). כל ביקור LOYALTY_VISITS הוא מתנה."""
+    if LOYALTY_VISITS <= 0:
+        return None
+    stamps = visits % LOYALTY_VISITS
+    return {
+        "total": LOYALTY_VISITS,
+        "visits": visits,
+        "stamps": stamps,
+        "next_is_gift": stamps == LOYALTY_VISITS - 1,
+        "left": LOYALTY_VISITS - 1 - stamps,
+    }
+
+
+def visits_by_client(events, color_id_to_treatment):
+    """שם -> מספר תורים שהסתיימו, תאריך אחרון."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    counts = defaultdict(lambda: {"visits": 0, "last": None})
+    for ev in events:
+        if ev.get("eventType") == "birthday":
+            continue
+        parsed = parse_event(ev, color_id_to_treatment)
+        if not parsed or parsed[2] > now:
+            continue
+        c = counts[parsed[0]]
+        c["visits"] += 1
+        if c["last"] is None or parsed[2] > c["last"]:
+            c["last"] = parsed[2]
+    return counts
+
+
+def base_url():
+    return PUBLIC_BASE_URL or request.url_root.rstrip("/")
+
+
+def card_path_for_phone(phone):
+    return url_for("card_by_phone", phone=phone)
+
+
+def checkin_wa_link():
+    if not BUSINESS_WHATSAPP:
+        return ""
+    return f"https://wa.me/{BUSINESS_WHATSAPP}?text={urllib.parse.quote(CHECKIN_MESSAGE)}"
+
+
+@app.route("/manifest.webmanifest")
+def manifest():
+    data = {
+        "name": "חזי דרור - מספרה",
+        "short_name": "חזי מספרה",
+        "lang": "he",
+        "dir": "rtl",
+        "start_url": "/app",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#100e0c",
+        "theme_color": "#100e0c",
+        "icons": [
+            {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": "/static/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+    }
+    return Response(json.dumps(data, ensure_ascii=False), mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    # Service worker מינימלי - מאפשר "התקנה" כאפליקציה. לא שומר נתוני לקוחות
+    # במטמון: הכל נטען תמיד מהשרת.
+    js = "self.addEventListener('install',e=>self.skipWaiting());" \
+         "self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));" \
+         "self.addEventListener('fetch',()=>{});"
+    resp = Response(js, mimetype="application/javascript")
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
+@app.route("/app")
+@login_required
+def app_home():
+    events = get_cached_events()
+    color_id_to_treatment = {cid: n for n, cid in load_price_colors().items()}
+    counts = visits_by_client(events, color_id_to_treatment)
+    clients = load_clients()
+    by_name = {c["name"]: p for p, c in clients.items()}
+    names = set(counts) | set(by_name)
+    directory = []
+    for n in sorted(names):
+        phone = by_name.get(n, "")
+        last = counts[n]["last"] if n in counts else None
+        directory.append({
+            "name": n,
+            "phone": phone,
+            "phone_display": format_phone(phone),
+            "visits": counts[n]["visits"] if n in counts else 0,
+            "last": last.astimezone(LOCAL_TZ).strftime("%d/%m/%y") if last else "",
+            "url": url_for("client_card", name=n),
+        })
+    return render_template("app.html", directory=directory, loyalty_total=LOYALTY_VISITS,
+                           has_checkin=bool(CHECKIN_SECRET), poster_ready=bool(BUSINESS_WHATSAPP))
+
+
+@app.route("/api/today")
+@login_required
+def api_today():
+    if request.args.get("refresh") == "1":
+        _read_tab_rows(_checkins_rows_cache, CHECKINS_TAB, CHECKINS_SHEET_DATA_RANGE, force=True)
+    events = get_cached_events(force=request.args.get("refresh") == "1")
+    color_id_to_treatment = {cid: n for n, cid in load_price_colors().items()}
+    counts = visits_by_client(events, color_id_to_treatment)
+    clients = load_clients()
+    phone_by_name = {c["name"]: p for p, c in clients.items()}
+    today = local_now().date()
+    checkins = load_checkins_today()
+    arrived = {c["name"] for c in checkins}
+
+    appts = []
+    for ev in events:
+        if ev.get("eventType") == "birthday":
+            continue
+        parsed = parse_event(ev, color_id_to_treatment)
+        if not parsed:
+            continue
+        name, treatment, dt = parsed
+        local = dt.astimezone(LOCAL_TZ)
+        if local.date() != today:
+            continue
+        past = counts[name]["visits"] if name in counts else 0
+        # תור של היום שכבר עבר נספר ב-past; הכרטיסייה מתייחסת לתור עצמו
+        visit_no = past if dt <= datetime.datetime.now(datetime.timezone.utc) else past + 1
+        appts.append({
+            "time": local.strftime("%H:%M"),
+            "name": name,
+            "treatment": treatment,
+            "arrived": name in arrived,
+            "gift": bool(LOYALTY_VISITS) and visit_no > 0 and visit_no % LOYALTY_VISITS == 0,
+            "url": url_for("client_card", name=name),
+            "phone_display": format_phone(phone_by_name.get(name, "")),
+        })
+    appts.sort(key=lambda a: a["time"])
+
+    out_checkins = []
+    for c in reversed(checkins):
+        n = c["name"]
+        loyalty = loyalty_for(counts[n]["visits"] if n in counts else 0)
+        out_checkins.append({
+            "time": c["time"][11:16],
+            "name": n,
+            "phone_display": format_phone(c["phone"]),
+            "is_new": c["is_new"],
+            "next_is_gift": bool(loyalty and loyalty["next_is_gift"]),
+            "stamps": loyalty["stamps"] if loyalty else None,
+            "url": card_path_for_phone(c["phone"]),
+        })
+    return jsonify({"checkins": out_checkins, "appointments": appts,
+                    "date": f"{HEB_DAYS[today.weekday()]} {today.strftime('%d/%m')}"})
+
+
+@app.route("/c/<phone>")
+@login_required
+def card_by_phone(phone):
+    phone = normalize_phone(phone)
+    client = load_clients().get(phone)
+    if client:
+        return redirect(url_for("client_card", name=client["name"]))
+    return redirect(url_for("new_client", phone=phone))
+
+
+@app.route("/app/new", methods=["GET", "POST"])
+@login_required
+def new_client():
+    error = ""
+    phone_raw = request.values.get("phone", "")
+    name = normalize_treatment_name(request.values.get("name", ""))
+    if request.method == "POST":
+        phone = normalize_phone(phone_raw)
+        if not name:
+            error = "צריך שם - בדיוק כמו שהוא נרשם בתיאור התור ביומן."
+        elif not phone:
+            error = "מספר הטלפון לא תקין. הקלידו 10 ספרות, לדוגמה 050-1234567."
+        else:
+            existing = load_clients().get(phone)
+            if existing and existing["name"] != name:
+                error = f"הטלפון הזה כבר שמור אצל {existing['name']}."
+            else:
+                upsert_client(phone, name, "app")
+                flash(f"{name} נשמר/ה. רשמו את השם בדיוק כך בתיאור התור ביומן, כדי שההיסטוריה תתחבר לכרטסת.")
+                return redirect(url_for("client_card", name=name))
+    return render_template("new_client.html", phone=format_phone(normalize_phone(phone_raw)) or phone_raw,
+                           name=name, error=error)
+
+
+@app.route("/clients/<path:name>/phone", methods=["POST"])
+@login_required
+def set_client_phone(name):
+    name = normalize_treatment_name(name)
+    phone = normalize_phone(request.form.get("phone", ""))
+    if not phone:
+        flash("מספר הטלפון לא תקין.")
+        return redirect(url_for("client_card", name=name))
+    existing = load_clients().get(phone)
+    if existing and existing["name"] != name:
+        flash(f"הטלפון הזה כבר שמור אצל {existing['name']}.")
+        return redirect(url_for("client_card", name=name))
+    upsert_client(phone, name, "app")
+    flash("הטלפון נשמר.")
+    return redirect(url_for("client_card", name=name))
+
+
+@app.route("/api/checkin", methods=["POST"])
+def api_checkin():
+    """נקרא מ-Make כשלקוח שולח את הודעת הברקוד בוואטסאפ.
+    גוף JSON (או טופס): secret, phone, name (מאנשי הקשר, או השם שלו בוואטסאפ),
+    new_contact (true אם Make יצר עכשיו איש קשר חדש)."""
+    data = request.get_json(silent=True) or request.form.to_dict()
+    secret = request.headers.get("X-Checkin-Secret") or str(data.get("secret", ""))
+    if not CHECKIN_SECRET or not hmac.compare_digest(secret.encode(), CHECKIN_SECRET.encode()):
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    phone = normalize_phone(data.get("phone"))
+    if not phone:
+        return jsonify({"ok": False, "error": "bad_phone"}), 400
+    contact_name = normalize_treatment_name(data.get("name"))
+    new_contact = str(data.get("new_contact", "")).lower() in ("1", "true", "yes")
+
+    existing = load_clients().get(phone)
+    if existing and not contact_name:
+        name, is_new = existing["name"], False
+    else:
+        name, is_new = upsert_client(phone, contact_name or f"לקוח חדש {format_phone(phone)}", "checkin")
+    events = get_cached_events()
+    color_id_to_treatment = {cid: n for n, cid in load_price_colors().items()}
+    counts = visits_by_client(events, color_id_to_treatment)
+    visits = counts[name]["visits"] if name in counts else 0
+    loyalty = loyalty_for(visits)
+    # "חדש" = איש קשר שנוצר עכשיו, או לקוח שלא מוכר לא בגיליון וגם לא ביומן.
+    # לקוחה ותיקה עם היסטוריה ביומן שרק עכשיו נשמר לה טלפון אינה "חדשה".
+    is_new = new_contact or (is_new and visits == 0)
+
+    now = local_now()
+    _append_row(_checkins_rows_cache, CHECKINS_TAB,
+                [now.isoformat(timespec="seconds"), phone, name, "yes" if is_new else "no"])
+
+    card_url = base_url() + card_path_for_phone(phone)
+    lines = [f"✂️ {name} הגיע/ה למספרה ({now.strftime('%H:%M')})"]
+    if is_new:
+        lines.append("לקוח/ה חדש/ה - נוצרה כרטסת")
+    elif loyalty:
+        lines.append("🎁 הביקור הזה מתנה מהכרטיסייה!" if loyalty["next_is_gift"]
+                     else f"כרטיסייה: {loyalty['stamps']}/{loyalty['total']}")
+    lines.append(card_url)
+
+    return jsonify({
+        "ok": True, "name": name, "phone": phone, "is_new": is_new, "visits": visits,
+        "next_is_gift": bool(loyalty and loyalty["next_is_gift"]),
+        "card_url": card_url, "app_url": base_url() + url_for("app_home"),
+        "message": "\n".join(lines),
+    })
+
+
+@app.route("/poster")
+@login_required
+def poster():
+    link = checkin_wa_link()
+    svg = ""
+    if link:
+        import qrcode
+        import qrcode.image.svg
+        img = qrcode.make(link, image_factory=qrcode.image.svg.SvgPathImage, box_size=20, border=2)
+        buf = io.BytesIO()
+        img.save(buf)
+        svg = buf.getvalue().decode("utf-8")
+        svg = svg[svg.find("<svg"):]
+    return render_template("poster.html", svg=svg, link=link, message=CHECKIN_MESSAGE)
 
 
 if __name__ == "__main__":

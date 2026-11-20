@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}ברקוד כניסה - חזי מספרה{% endblock %}
+{% block head %}
+<style>
+  .poster { max-width: 520px; margin: 0 auto; text-align: center; background: #0b0908; border: 3px solid #e8bb5a; border-radius: 22px; padding: 28px 22px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+  .poster h2 { margin: 0; font-family: var(--font-head); font-weight: 900; font-size: 40px;
+    background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .poster .big { font-size: 26px; font-weight: 800; margin: 0; }
+  .poster .qr { background: #fff; padding: 14px; border-radius: 16px; width: min(340px, 100%); }
+  .poster .qr svg { width: 100%; height: auto; display: block; }
+  .poster ol { text-align: right; margin: 0; padding-inline-start: 22px; font-size: 18px; color: var(--ink); }
+  .howto { max-width: 520px; margin: 18px auto 0; }
+  @media print {
+    header, .howto, footer { display: none !important; }
+    body { background: #fff; }
+    main { padding: 0; }
+  }
+</style>
+{% endblock %}
+{% block body %}
+<header>
+  <h1>ברקוד לכניסה</h1>
+  <nav><a href="{{ url_for('app_home') }}">אפליקציה</a></nav>
+</header>
+<main>
+  {% if not svg %}
+  <div class="card">
+    <p>כדי ליצור את הברקוד צריך להגדיר בשרת את <code>BUSINESS_WHATSAPP</code>: מספר הוואטסאפ של העסק (המספר שמחובר ל-Green-API), למשל <code dir="ltr">972503479449</code>.</p>
+  </div>
+  {% else %}
+  <div class="poster">
+    <h2>חזי דרור</h2>
+    <p class="big">הגעתם? סרקו כאן ✂️</p>
+    <div class="qr">{{ svg|safe }}</div>
+    <ol>
+      <li>פותחים את המצלמה ומכוונים לקוד</li>
+      <li>נפתח וואטסאפ עם הודעה מוכנה</li>
+      <li>לוחצים שלח, וזהו</li>
+    </ol>
+  </div>
+  <div class="howto card">
+    <p style="margin-top:0;"><strong>איך להשתמש:</strong> צלמו מסך או הדפיסו מהמחשב (Ctrl+P), ותלו ליד הכניסה.</p>
+    <p class="muted" style="margin-bottom:0;">הסריקה פותחת וואטסאפ למספר העסק עם ההודעה "<bdi>{{ message }}</bdi>". Make מזהה את ההודעה, מחבר את הלקוח לאנשי הקשר ושולח לך קישור לכרטסת.</p>
+    <p class="muted" style="margin-bottom:0;">בדיקה: <a href="{{ link }}" target="_blank" rel="noopener">פתיחת הקישור</a></p>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

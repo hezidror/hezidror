@@ -332,3 +332,100 @@ Contacts → HTTP) נבנה **בלי שום Data store** למניעת כפילו
 - כדאי לשקול להחיל את אותו תיקון (`sent_reminders_v2` + `Not equal to
   yes`) גם על "קביעת תור"/"עידכון תור" אם עוד לא בוצע שם, כדי שכל
   התרחישים ישתמשו באותו מנגנון אמין - כל אחד עם מפתח ייחודי משלו.
+
+---
+
+## תרחיש 7: צ'ק-אין בברקוד ("הגעתי למספרה")
+
+**מה זה עושה:** הלקוח סורק בכניסה את הברקוד (עמוד "ברקוד" באפליקציה). נפתח
+לו וואטסאפ למספר העסק עם ההודעה המוכנה "היי, הגעתי למספרה", והוא לוחץ שלח.
+התרחיש:
+1. קולט את ההודעה מ-Green-API.
+2. מחפש את הטלפון ב-Google Contacts. אם הלקוח לא קיים, יוצר איש קשר חדש
+   עם השם שמופיע אצלו בוואטסאפ.
+3. מודיע לדשבורד (`/api/checkin`): נוצרת או מתעדכנת כרטסת, והלקוח מופיע
+   ב"הגיעו עכשיו" באפליקציה.
+4. שולח לך לוואטסאפ הפרטי הודעה עם הקישור לכרטסת (והאם הביקור הוא מתנה
+   מהכרטיסייה).
+
+**מבנה:** Webhooks (Custom webhook) → פילטר → Google Contacts (Search
+Contacts) → Router: [נמצא] / [לא נמצא → Create a Contact] → HTTP
+(הדשבורד) → HTTP (Green-API sendMessage אליך).
+
+### הקמה שלב אחרי שלב
+
+**א. בשרת (Render → Environment):** להוסיף `CHECKIN_SECRET` (מחרוזת אקראית
+ארוכה), `BUSINESS_WHATSAPP` (מספר העסק שמחובר ל-Green-API, למשל
+`972503479449`) ו-`PUBLIC_BASE_URL` (כתובת הדשבורד, למשל
+`https://xxxx.onrender.com`). פירוט ב-README.
+
+**ב. ב-Make:** תרחיש חדש, מודול ראשון **Webhooks → Custom webhook** → Add →
+שם "צ'ק-אין וואטסאפ". להעתיק את כתובת ה-webhook.
+
+**ג. ב-Green-API (console.green-api.com → האינסטנס → Settings):**
+- `webhookUrl` = הכתובת מ-Make.
+- להפעיל **Receive webhooks on incoming messages** (`incomingWebhook = yes`).
+- ⚠️ לאינסטנס יש כתובת webhook **אחת**. אם כבר מוגדרת שם כתובת אחרת, לא
+  לדרוס אותה: לבדוק קודם למה היא משמשת.
+
+לשלוח לעצמך מטלפון אחר את ההודעה מהברקוד, ואז ב-Make ללחוץ **Redetermine
+data structure** כדי שהשדות יופיעו.
+
+**ד. פילטר אחרי ה-webhook** (כל התנאים ב-AND):
+- `typeWebhook` **Equal to** `incomingMessageReceived`
+- `senderData.chatId` **Ends with** `@c.us` (לא קבוצות)
+- `messageData.textMessageData.textMessage` **Contains** `הגעתי`
+  (אם ההודעה מגיעה כ-`extendedTextMessage`, להוסיף OR על
+  `messageData.extendedTextMessageData.text` **Contains** `הגעתי`)
+
+**ה. Google Contacts → Search Contacts:** Query =
+`{{replace(senderData.sender; "@c.us"; "")}}`, כלומר `972XXXXXXXXX`, באותו
+פורמט שבו הטלפונים שמורים אצלך (ראו תקלה #1). Limit = 1.
+אם לקוח קיים לא נמצא בבדיקה, כנראה הטלפון שמור אצלו בפורמט `05X...`: אז
+להחליף את ה-Query ל-`0{{substring(replace(senderData.sender; "@c.us"; ""); 3; 12)}}`.
+
+**ו. Router עם שני מסלולים:**
+
+*מסלול 1 - נמצא* (פילטר: `Contact ID` **Exists**) → **HTTP → Make a request**:
+- URL: `https://<הדשבורד>/api/checkin`, Method: `POST`
+- Headers: `X-Checkin-Secret` = הערך של `CHECKIN_SECRET`
+- Body type: Raw, Content type: `JSON (application/json)`
+- Request content:
+  ```json
+  {"phone": "{{replace(1.senderData.sender; "@c.us"; "")}}", "name": "{{Display Name של איש הקשר}}"}
+  ```
+- Parse response: **Yes**. Timeout: **120** (ב-Render החינמי השרת "מתעורר"
+  עד דקה אחרי שינה).
+
+*מסלול 2 - לא נמצא* (פילטר: `Contact ID` **Does not exist**) →
+**Google Contacts → Create a Contact** (Given name = `senderData.senderName`,
+Phone = `+` ואחריו הטלפון) → אותו מודול HTTP, עם body:
+```json
+{"phone": "...", "name": "{{1.senderData.senderName}}", "new_contact": true}
+```
+
+⚠️ השם באנשי הקשר צריך להיות זהה לשם שנרשם בתיאור התור ביומן. אחרת
+ההיסטוריה והכרטיסייה לא יתחברו לכרטסת. אצל לקוח חדש, לתקן את השם באנשי
+הקשר אם צריך, ולרשום אותו כך גם ביומן.
+
+**ז. שליחת ההודעה אליך:** אחרי כל אחד ממודולי ה-HTTP, אותו מודול
+Green-API/HTTP שכבר משמש בתרחישים האחרים (`sendMessage`), עם:
+- `chatId` = `972XXXXXXXXX@c.us` של **הטלפון הפרטי שלך** (לא מספר העסק).
+- `message` = `{{data.message}}` מתשובת הדשבורד. זה טקסט מוכן, לדוגמה:
+  ```
+  ✂️ דנה לוי הגיע/ה למספרה (10:32)
+  🎁 הביקור הזה מתנה מהכרטיסייה!
+  https://xxxx.onrender.com/c/972501234567
+  ```
+  לבניית ה-body ב-JSON, להשתמש באותה שיטה שתיקנה את תקלה #10.
+
+**ח. (רשות) תשובה ללקוח:** עוד sendMessage ל-`senderData.chatId`, למשל
+"ברוכים הבאים! חזי איתך עוד רגע ✂️".
+
+**ט. Scheduling:** Immediately (as data arrives). להפעיל את התרחיש.
+
+### בדיקה
+1. בעמוד "ברקוד" באפליקציה, לסרוק מטלפון שאינו הטלפון של העסק ולשלוח.
+2. תוך כמה שניות: הודעה עם קישור מגיעה לטלפון הפרטי, והשם מופיע ב"הגיעו
+   עכשיו" באפליקציה.
+3. לבדוק בגיליון שנוצרו הלשוניות `Clients` ו-`Checkins` עם השורה.

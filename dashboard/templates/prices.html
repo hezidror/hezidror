@@ -4,6 +4,7 @@
 <header>
   <h1>מחירון טיפולים</h1>
   <nav>
+    <a href="{{ url_for('app_home') }}">אפליקציה</a>
     <a href="{{ url_for('clients_list') }}">לקוחות</a>
     <a href="{{ url_for('clients_frequency') }}">תדירות</a>
     <a href="{{ url_for('dashboard') }}">לדשבורד</a>
@@ -25,7 +26,7 @@
     <div id="copy-list" style="display:flex; flex-wrap:wrap; gap:8px;">
       {% for name, price in prices.items() %}
       <button type="button" class="copy-chip" data-name="{{ name }}"
-              style="padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:#faf7f2; cursor:pointer; font-size:14px;">
+              style="padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:var(--chip); cursor:pointer; font-size:14px;">
         {{ name }} <span class="muted">({{ price|int }}₪)</span>
       </button>
       {% endfor %}
@@ -58,7 +59,7 @@
         </tbody>
       </table>
       <p class="muted" style="margin-top:8px;">כדי למחוק טיפול, סמן את תיבת הסימון בעמודת "מחיקה" שלו ולחץ שמירה.</p>
-      <button type="submit" style="margin-top:16px; padding:10px 20px; border-radius:10px; border:none; background:var(--accent); color:#fff; cursor:pointer;">
+      <button type="submit" style="margin-top:16px; padding:10px 20px; border-radius:10px; border:none; background:var(--gold-grad); color:var(--on-accent); font-weight:800; cursor:pointer;">
         שמירה
       </button>
     </form>
@@ -82,8 +83,8 @@ document.querySelectorAll(".copy-chip").forEach(btn => {
     }
     const original = btn.innerHTML;
     btn.textContent = "הועתק! ✓";
-    btn.style.background = "#e8f5e9";
-    setTimeout(() => { btn.innerHTML = original; btn.style.background = "#faf7f2"; }, 1200);
+    btn.style.background = "var(--ok-bg)";
+    setTimeout(() => { btn.innerHTML = original; btn.style.background = ""; }, 1200);
   });
 });
 </script>

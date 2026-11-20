@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}לקוח חדש - חזי מספרה{% endblock %}
+{% block body %}
+<header>
+  <h1>לקוח חדש</h1>
+  <nav>
+    <a href="{{ url_for('app_home') }}">אפליקציה</a>
+    <a href="{{ url_for('clients_list') }}">לקוחות</a>
+  </nav>
+</header>
+<main style="max-width:560px;">
+  {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+  <form method="post" class="card" style="display:flex; flex-direction:column; gap:14px;">
+    <label style="display:flex; flex-direction:column; gap:6px;">
+      <span class="muted">שם מלא</span>
+      <input id="name" name="name" value="{{ name }}" required autofocus
+             style="padding:12px 14px; border-radius:10px; font-size:18px;">
+      <span class="muted" style="font-size:13px;">בדיוק כמו שהוא נרשם בתיאור התור ביומן ובאנשי הקשר, כדי שההיסטוריה תתחבר.</span>
+    </label>
+    <label style="display:flex; flex-direction:column; gap:6px;">
+      <span class="muted">טלפון</span>
+      <input id="phone" name="phone" value="{{ phone }}" type="tel" inputmode="tel" dir="ltr" required
+             placeholder="050-1234567" style="padding:12px 14px; border-radius:10px; font-size:18px; text-align:right;">
+    </label>
+    <button type="submit" class="btn-gold">שמור ופתח כרטסת</button>
+  </form>
+</main>
+{% endblock %}
