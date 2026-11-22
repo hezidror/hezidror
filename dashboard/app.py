@@ -1116,8 +1116,11 @@ def api_checkin():
     existing = load_clients().get(phone)
     if contact_name:
         name, is_new = upsert_client(phone, contact_name, "contacts")
-    elif existing:
+    elif existing and not (whatsapp_name and existing["name"].startswith("לקוח חדש")):
         name, is_new = existing["name"], False
+    elif existing:
+        # היה רק שם זמני ("לקוח חדש 05X-...") - מחליפים בשם שלו מהוואטסאפ
+        name, is_new = upsert_client(phone, whatsapp_name, "checkin")
     else:
         name, is_new = upsert_client(phone, whatsapp_name or f"לקוח חדש {format_phone(phone)}", "checkin")
     # במסלול fallback הלקוח לא נמצא באנשי הקשר - מציעים ליצור אותו שם
