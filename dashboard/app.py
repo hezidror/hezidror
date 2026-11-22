@@ -1084,9 +1084,14 @@ def set_client_phone(name):
 
 @app.route("/api/checkin", methods=["POST"])
 def api_checkin():
-    """נקרא מ-Make כשלקוח שולח את הודעת הברקוד בוואטסאפ.
-    גוף JSON (או טופס): secret, phone, name (מאנשי הקשר, או השם שלו בוואטסאפ),
-    new_contact (true אם Make יצר עכשיו איש קשר חדש)."""
+    """נקרא מ-Make כשלקוח שולח את הודעת הברקוד בוואטסאפ. גוף JSON (או טופס):
+    secret (או header X-Checkin-Secret), phone, ועוד:
+    - name: השם מאנשי הקשר (כשנמצא איש קשר). הוא הקובע, ומעדכן את הגיליון.
+    - whatsapp_name: השם של הלקוח בוואטסאפ - משמש רק ללקוח שלא מוכר בכלל.
+    - fallback: true במסלול "לא נמצא באנשי הקשר". אם המסלול של "נמצא" כבר רשם
+      את ההגעה הזו בדקות האחרונות, מחזירים skip=true ולא רושמים שוב.
+    בתשובה: message (טקסט מוכן לשליחה לחזי), card_url, name, is_new, skip,
+    create_contact (true = כדאי ליצור איש קשר בגוגל עם name ו-phone)."""
     data = request.get_json(silent=True) or request.form.to_dict()
     secret = request.headers.get("X-Checkin-Secret") or str(data.get("secret", ""))
     if not CHECKIN_SECRET or not hmac.compare_digest(secret.encode(), CHECKIN_SECRET.encode()):
@@ -1096,13 +1101,27 @@ def api_checkin():
     if not phone:
         return jsonify({"ok": False, "error": "bad_phone"}), 400
     contact_name = normalize_treatment_name(data.get("name"))
-    new_contact = str(data.get("new_contact", "")).lower() in ("1", "true", "yes")
+    whatsapp_name = normalize_treatment_name(data.get("whatsapp_name"))
+    flag = lambda key: str(data.get(key, "")).lower() in ("1", "true", "yes")
+    new_contact = flag("new_contact")
+    fallback = flag("fallback")
+
+    if fallback:
+        cutoff = (local_now() - datetime.timedelta(minutes=3)).isoformat(timespec="seconds")
+        recent = [r for r in _read_tab_rows(_checkins_rows_cache, CHECKINS_TAB, CHECKINS_SHEET_DATA_RANGE)
+                  if len(r) > 1 and normalize_phone(r[1]) == phone and r[0] >= cutoff]
+        if recent:
+            return jsonify({"ok": True, "skip": True, "create_contact": False})
 
     existing = load_clients().get(phone)
-    if existing and not contact_name:
+    if contact_name:
+        name, is_new = upsert_client(phone, contact_name, "contacts")
+    elif existing:
         name, is_new = existing["name"], False
     else:
-        name, is_new = upsert_client(phone, contact_name or f"לקוח חדש {format_phone(phone)}", "checkin")
+        name, is_new = upsert_client(phone, whatsapp_name or f"לקוח חדש {format_phone(phone)}", "checkin")
+    # במסלול fallback הלקוח לא נמצא באנשי הקשר - מציעים ליצור אותו שם
+    create_contact = fallback
     events = get_cached_events()
     color_id_to_treatment = {cid: n for n, cid in load_price_colors().items()}
     counts = visits_by_client(events, color_id_to_treatment)
@@ -1126,7 +1145,8 @@ def api_checkin():
     lines.append(card_url)
 
     return jsonify({
-        "ok": True, "name": name, "phone": phone, "is_new": is_new, "visits": visits,
+        "ok": True, "skip": False, "create_contact": create_contact,
+        "name": name, "phone": phone, "is_new": is_new, "visits": visits,
         "next_is_gift": bool(loyalty and loyalty["next_is_gift"]),
         "card_url": card_url, "app_url": base_url() + url_for("app_home"),
         "message": "\n".join(lines),

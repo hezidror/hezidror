@@ -348,81 +348,36 @@ Contacts → HTTP) נבנה **בלי שום Data store** למניעת כפילו
 4. שולח לך לוואטסאפ הפרטי הודעה עם הקישור לכרטסת (והאם הביקור הוא מתנה
    מהכרטיסייה).
 
-**מבנה:** Webhooks (Custom webhook) → פילטר → Google Contacts (Search
-Contacts) → Router: [נמצא] / [לא נמצא → Create a Contact] → HTTP
-(הדשבורד) → HTTP (Green-API sendMessage אליך).
+**איך זה בנוי בפועל:** ל-Green-API יש כתובת webhook אחת, והיא כבר משמשת את
+תרחיש "הודעה אוטומטית" (שעונה לכל הודעה נכנסת). לכן הצ'ק-אין נבנה בתוך
+**עותק** של התרחיש הזה ("צק אין וואצאפ"), עם Router אחרי ה-webhook:
 
-### הקמה שלב אחרי שלב
+| מסלול | פילטר | מודולים |
+|---|---|---|
+| 1. תשובה אוטומטית (הקיים) | `typeWebhook` = `incomingMessageReceived` **וגם** הטקסט **לא** מכיל `הגעתי` | HTTP sendMessage ללקוח (כמו היום) |
+| 2. צ'ק-אין, נמצא באנשי הקשר | הודעה נכנסת **וגם** הטקסט מכיל `הגעתי` | Google Contacts: Search Contacts (טלפון) → HTTP לדשבורד עם `name` → HTTP sendMessage לחזי |
+| 3. צ'ק-אין, גיבוי / לא נמצא | אותו פילטר כמו 2 | HTTP לדשבורד עם `whatsapp_name` ו-`fallback: true` → פילטר `skip` = false → HTTP sendMessage לחזי → פילטר `create_contact` = true → Google Contacts: Create a Contact |
+| 4. ברוכים הבאים (רשות) | אותו פילטר כמו 2 | HTTP sendMessage ללקוח: "ברוכים הבאים..." |
 
-**א. בשרת (Render → Environment):** להוסיף `CHECKIN_SECRET` (מחרוזת אקראית
-ארוכה), `BUSINESS_WHATSAPP` (מספר העסק שמחובר ל-Green-API, למשל
-`9725XXXXXXXX`) ו-`PUBLIC_BASE_URL` (כתובת הדשבורד, למשל
-`https://xxxx.onrender.com`). פירוט ב-README.
+מסלולי Router רצים לפי הסדר. אם מסלול 2 מצא איש קשר ורשם הגעה, מסלול 3 מקבל
+מהדשבורד `skip: true` ולא שולח שוב. אם לא נמצא איש קשר, מסלול 2 נעצר
+(חיפוש בלי תוצאות לא ממשיך), ומסלול 3 רושם את הלקוח עם השם שלו בוואטסאפ
+ויוצר לו איש קשר.
 
-**ב. ב-Make:** תרחיש חדש, מודול ראשון **Webhooks → Custom webhook** → Add →
-שם "צ'ק-אין וואטסאפ". להעתיק את כתובת ה-webhook.
+**גוף הבקשה לדשבורד** (`POST https://hezidror.onrender.com/api/checkin`,
+Header `X-Checkin-Secret`, Body type JSON, Parse response = Yes, Timeout 120):
+- מסלול 2: `{"phone": "<טלפון>", "name": "<Display name מאנשי הקשר>"}`
+- מסלול 3: `{"phone": "<טלפון>", "whatsapp_name": "<1.senderData.senderName>", "fallback": true}`
 
-**ג. ב-Green-API (console.green-api.com → האינסטנס → Settings):**
-- `webhookUrl` = הכתובת מ-Make.
-- להפעיל **Receive webhooks on incoming messages** (`incomingWebhook = yes`).
-- ⚠️ לאינסטנס יש כתובת webhook **אחת**. אם כבר מוגדרת שם כתובת אחרת, לא
-  לדרוס אותה: לבדוק קודם למה היא משמשת.
+הטלפון: `{{replace(1.senderData.sender; "@c.us"; "")}}`.
 
-לשלוח לעצמך מטלפון אחר את ההודעה מהברקוד, ואז ב-Make ללחוץ **Redetermine
-data structure** כדי שהשדות יופיעו.
+**ההודעה לחזי:** sendMessage עם `chatId` = `972503479449@c.us`
+(הטלפון הפרטי של חזי, 050-3479449. לא מספר העסק שמחובר ל-Green-API), ו-
+`message` = `data.message` מתשובת הדשבורד.
 
-**ד. פילטר אחרי ה-webhook** (כל התנאים ב-AND):
-- `typeWebhook` **Equal to** `incomingMessageReceived`
-- `senderData.chatId` **Ends with** `@c.us` (לא קבוצות)
-- `messageData.textMessageData.textMessage` **Contains** `הגעתי`
-  (אם ההודעה מגיעה כ-`extendedTextMessage`, להוסיף OR על
-  `messageData.extendedTextMessageData.text` **Contains** `הגעתי`)
-
-**ה. Google Contacts → Search Contacts:** Query =
-`{{replace(senderData.sender; "@c.us"; "")}}`, כלומר `972XXXXXXXXX`, באותו
-פורמט שבו הטלפונים שמורים אצלך (ראו תקלה #1). Limit = 1.
-אם לקוח קיים לא נמצא בבדיקה, כנראה הטלפון שמור אצלו בפורמט `05X...`: אז
-להחליף את ה-Query ל-`0{{substring(replace(senderData.sender; "@c.us"; ""); 3; 12)}}`.
-
-**ו. Router עם שני מסלולים:**
-
-*מסלול 1 - נמצא* (פילטר: `Contact ID` **Exists**) → **HTTP → Make a request**:
-- URL: `https://<הדשבורד>/api/checkin`, Method: `POST`
-- Headers: `X-Checkin-Secret` = הערך של `CHECKIN_SECRET`
-- Body type: Raw, Content type: `JSON (application/json)`
-- Request content:
-  ```json
-  {"phone": "{{replace(1.senderData.sender; "@c.us"; "")}}", "name": "{{Display Name של איש הקשר}}"}
-  ```
-- Parse response: **Yes**. Timeout: **120** (ב-Render החינמי השרת "מתעורר"
-  עד דקה אחרי שינה).
-
-*מסלול 2 - לא נמצא* (פילטר: `Contact ID` **Does not exist**) →
-**Google Contacts → Create a Contact** (Given name = `senderData.senderName`,
-Phone = `+` ואחריו הטלפון) → אותו מודול HTTP, עם body:
-```json
-{"phone": "...", "name": "{{1.senderData.senderName}}", "new_contact": true}
-```
-
-⚠️ השם באנשי הקשר צריך להיות זהה לשם שנרשם בתיאור התור ביומן. אחרת
-ההיסטוריה והכרטיסייה לא יתחברו לכרטסת. אצל לקוח חדש, לתקן את השם באנשי
-הקשר אם צריך, ולרשום אותו כך גם ביומן.
-
-**ז. שליחת ההודעה אליך:** אחרי כל אחד ממודולי ה-HTTP, אותו מודול
-Green-API/HTTP שכבר משמש בתרחישים האחרים (`sendMessage`), עם:
-- `chatId` = `972503479449@c.us` (הטלפון הפרטי של חזי, 050-3479449. לא מספר העסק שמחובר ל-Green-API).
-- `message` = `{{data.message}}` מתשובת הדשבורד. זה טקסט מוכן, לדוגמה:
-  ```
-  ✂️ דנה לוי הגיע/ה למספרה (10:32)
-  🎁 הביקור הזה מתנה מהכרטיסייה!
-  https://xxxx.onrender.com/c/972501234567
-  ```
-  לבניית ה-body ב-JSON, להשתמש באותה שיטה שתיקנה את תקלה #10.
-
-**ח. (רשות) תשובה ללקוח:** עוד sendMessage ל-`senderData.chatId`, למשל
-"ברוכים הבאים! חזי איתך עוד רגע ✂️".
-
-**ט. Scheduling:** Immediately (as data arrives). להפעיל את התרחיש.
+**המעבר לעותק:** כשהעותק מוכן, מדביקים ב-Green-API את כתובת ה-webhook של
+העותק, מפעילים אותו ומכבים את "הודעה אוטומטית". חזרה אחורה: מחזירים ב-Green-API
+את הכתובת הישנה ומפעילים שוב את הישן.
 
 ### בדיקה
 1. בעמוד "ברקוד" באפליקציה, לסרוק מטלפון שאינו הטלפון של העסק ולשלוח.
