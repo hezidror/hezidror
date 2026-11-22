@@ -35,6 +35,8 @@
   .empty { padding: 18px; border: 1.5px dashed var(--line); border-radius: 14px; color: var(--muted); text-align: center; }
   .note { font-size: 14px; color: var(--muted); }
 
+  .autobox { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); cursor: pointer; font-size: 15px; }
+  .autobox input { width: 22px; height: 22px; accent-color: #e8bb5a; flex: none; margin-top: 2px; }
   .tabbar { position: fixed; inset: auto 0 0 0; background: var(--card); border-top: 1px solid var(--line);
     display: grid; grid-template-columns: repeat(4, 1fr);
     padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); z-index: 5; }
@@ -56,6 +58,12 @@
     <input id="q" type="search" placeholder="חיפוש לקוח: שם או טלפון" autocomplete="off" aria-label="חיפוש לקוח">
     <div class="results" id="results"></div>
   </div>
+
+  <label class="autobox" for="auto-open">
+    <input type="checkbox" id="auto-open" checked>
+    <span><strong>פתיחה אוטומטית של הכרטסת</strong><br>
+    <span class="muted">כשלקוח סורק את הברקוד, הכרטסת שלו נפתחת לבד על המסך הזה. השאירו את המסך פתוח על האפליקציה.</span></span>
+  </label>
 
   <section class="sec">
     <h2>הגיעו עכשיו <span class="muted" id="checkinCount"></span></h2>
@@ -155,7 +163,8 @@ async function loadToday(force) {
 $("refresh").addEventListener("click", () => loadToday(true));
 loadToday(false);
 // כל 30 שניות בודקים אם מישהו סרק (קריאה קלה מהקאש; הצ'ק-אין עצמו מעדכן את הקאש מיד)
-setInterval(() => { if (!document.hidden) loadToday(false); }, 30000);
+setInterval(() => { if (!document.hidden) loadToday(false); }, 15000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) loadToday(false); });
 </script>
+<script src="{{ url_for('static', filename='live.js') }}" data-mode="app"></script>
 {% endblock %}

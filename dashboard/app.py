@@ -1031,6 +1031,25 @@ def api_today():
                     "date": f"{HEB_DAYS[today.weekday()]} {today.strftime('%d/%m')}"})
 
 
+@app.route("/api/latest-checkin")
+@login_required
+def api_latest_checkin():
+    """הצ'ק-אין האחרון של היום - קריאה קלה מהזיכרון, שהמסך במספרה בודק כל כמה
+    שניות כדי לפתוח לבד את הכרטסת של מי שסרק עכשיו."""
+    checkins = load_checkins_today()
+    if not checkins:
+        return jsonify({"key": None})
+    c = checkins[-1]
+    return jsonify({
+        "key": f"{c['time']}|{c['phone']}",
+        "name": c["name"],
+        "time": c["time"][11:16],
+        "is_new": c["is_new"],
+        "url": card_path_for_phone(c["phone"]),
+        "age_sec": max(0, int((local_now() - datetime.datetime.fromisoformat(c["time"])).total_seconds())),
+    })
+
+
 @app.route("/c/<phone>")
 @login_required
 def card_by_phone(phone):
