@@ -55,6 +55,7 @@
 
   function arrived(c) {
     set(KEY_SEEN, c.key);
+    document.title = "✂️ " + c.name + " הגיע/ה";
     if (navigator.vibrate) { try { navigator.vibrate([150, 80, 150]); } catch (e) {} }
     var onThisCard = MODE === "card" && location.pathname === decodeURIComponent(c.url);
     if (onThisCard) return;
@@ -66,7 +67,8 @@
   }
 
   function poll() {
-    if (document.hidden) return;
+    // בודקים גם כשהלשונית ברקע (מחשב עם הרבה לשוניות פתוחות). הדפדפן מאט
+    // טיימרים ברקע, אז שם זה יכול לקחת עד דקה - בלשונית שבחזית זה 5 שניות.
     fetch("/api/latest-checkin", { headers: { "Accept": "application/json" }, cache: "no-store" })
       .then(function (r) { return r.redirected ? null : r.json(); })
       .then(function (c) {
