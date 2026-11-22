@@ -1150,6 +1150,9 @@ def api_checkin():
         "next_is_gift": bool(loyalty and loyalty["next_is_gift"]),
         "card_url": card_url, "app_url": base_url() + url_for("app_home"),
         "message": "\n".join(lines),
+        # אותה הודעה, מוכנה להדבקה בתוך מחרוזת JSON ב-Make (שורות חדשות ומירכאות
+        # מקודדות), כדי שגוף הבקשה ל-Green-API לא יישבר (ראו תקלה #10).
+        "message_json": json.dumps("\n".join(lines), ensure_ascii=False)[1:-1],
     })
 
 
