@@ -118,6 +118,9 @@
 </head>
 <body>
   {% block body %}{% endblock %}
+  {% if session.get("authed") %}
+  <script src="{{ url_for('static', filename='live.js') }}" data-mode="{{ 'card' if request.endpoint == 'client_card' else 'app' }}"></script>
+  {% endif %}
   <script>
     if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
   </script>

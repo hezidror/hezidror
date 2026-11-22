@@ -690,6 +690,8 @@ def client_card(name):
     normalized_prices = {normalize_treatment_name(n): p for n, p in prices.items()}
     notes = load_client_notes()
     now = datetime.datetime.now(datetime.timezone.utc)
+    today = local_now().date()
+    completed_visits = 0
 
     history = []
     for ev in events:
@@ -699,9 +701,13 @@ def client_card(name):
         if not parsed:
             continue
         customer, treatment, dt = parsed
-        if customer != name or dt > now:
+        # כולל תור של היום גם אם השעה שלו עוד לא הגיעה - הלקוח כבר במספרה
+        is_today = dt.astimezone(LOCAL_TZ).date() == today
+        if customer != name or (dt > now and not is_today):
             continue
-        date_key = dt.strftime("%Y-%m-%d")
+        date_key = dt.astimezone(LOCAL_TZ).strftime("%Y-%m-%d")
+        if dt <= now:
+            completed_visits += 1
         note = notes.get((name, date_key), {})
         history.append({
             "date": date_key,
@@ -712,6 +718,20 @@ def client_card(name):
             # אפשרות לשנות; ברגע שנשמר שינוי ידני, הוא גובר.
             "treatment_type": note.get("treatment_type") or treatment,
             "details": note.get("details") or [{}],
+        })
+    # תמיד יש שורה לביקור של היום (גם ללקוח שלא ביומן / בלי תור), כדי שאפשר
+    # יהיה לרשום צבע וטיפול כשהוא מגיע.
+    today_key = today.strftime("%Y-%m-%d")
+    if not any(h["date"] == today_key for h in history):
+        note = notes.get((name, today_key), {})
+        history.append({
+            "date": today_key,
+            "date_display": today.strftime("%d/%m/%Y"),
+            "treatment": "",
+            "price": 0,
+            "treatment_type": note.get("treatment_type", ""),
+            "details": note.get("details") or [{}],
+            "walk_in": True,
         })
     history.sort(key=lambda h: h["date"], reverse=True)
 
@@ -733,7 +753,10 @@ def client_card(name):
         name=name,
         phone=phone,
         phone_display=format_phone(phone),
-        loyalty=loyalty_for(len(history)),
+        loyalty=loyalty_for(completed_visits),
+        completed_visits=completed_visits,
+        today_key=today.strftime("%Y-%m-%d"),
+        last_visit=next((h["date_display"] for h in history if h["date"] < today.strftime("%Y-%m-%d")), ""),
         next_appt=next_appt,
         history=history,
         treatment_types=sorted(prices.keys()),

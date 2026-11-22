@@ -166,5 +166,4 @@ loadToday(false);
 setInterval(() => { if (!document.hidden) loadToday(false); }, 15000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) loadToday(false); });
 </script>
-<script src="{{ url_for('static', filename='live.js') }}" data-mode="app"></script>
 {% endblock %}

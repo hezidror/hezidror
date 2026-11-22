@@ -26,8 +26,8 @@
         {% else %}
         <div class="muted">אין טלפון שמור ללקוח/ה הזו.</div>
         {% endif %}
-        <div><span class="muted">ביקורים</span> <strong>{{ history|length }}</strong>
-          {% if history %} · <span class="muted">אחרון</span> {{ history[0].date_display }}{% endif %}</div>
+        <div><span class="muted">ביקורים</span> <strong>{{ completed_visits }}</strong>
+          {% if last_visit %} · <span class="muted">אחרון</span> {{ last_visit }}{% endif %}</div>
         {% if next_appt %}
         <div><span class="muted">תור הבא</span> <strong>{{ next_appt.display }}</strong> · {{ next_appt.treatment }}</div>
         {% endif %}
@@ -93,8 +93,13 @@
     <div class="card visit-card" data-date="{{ row.date }}">
       <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px;">
         <div>
-          <strong>{{ row.date_display }}</strong>
+          {% if row.walk_in %}
+          <strong>היום · {{ row.date_display }}</strong>
+          <span class="muted">· אין תור ביומן להיום. בחרו סוג טיפול ורשמו פרטים</span>
+          {% else %}
+          <strong>{% if row.date == today_key %}היום · {% endif %}{{ row.date_display }}</strong>
           <span class="muted">· {{ row.treatment }} · {{ row.price|int }}₪</span>
+          {% endif %}
           <input type="hidden" name="date" value="{{ row.date }}">
         </div>
         <select name="treatment_type" class="treatment-type-select" data-date="{{ row.date }}"
@@ -186,5 +191,4 @@ document.querySelectorAll(".add-detail-row").forEach(btn => {
   });
 });
 </script>
-<script src="{{ url_for('static', filename='live.js') }}" data-mode="card"></script>
 {% endblock %}
