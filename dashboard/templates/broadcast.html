@@ -44,6 +44,7 @@
     <textarea id="msg" placeholder="לכבוד החג 15% הנחה על צבע עד סוף החודש"></textarea>
     <div class="fixed">{{ footer }}</div>
     <div class="row">
+      <button type="button" class="btn-ghost" id="clearMsg">נקה</button>
       <button type="button" class="btn-ghost" id="addOptout">הוסף שורת הסרה</button>
       <span class="count" id="count">0 תווים</span>
     </div>
@@ -114,7 +115,16 @@ function insert(text) {
   msg.focus(); msg.selectionStart = msg.selectionEnd = s + text.length; render();
 }
 document.getElementById("addOptout").onclick = () => { if (!msg.value.includes("להסרה")) { msg.value = msg.value.replace(/\s+$/, "") + "\n\nלהסרה מרשימת ההודעות השיבו הסר"; render(); } };
+document.getElementById("clearMsg").onclick = () => {
+  msg.value = ""; confirmWord.value = ""; result.hidden = true;
+  try { localStorage.removeItem(DRAFT); } catch (e) {}
+  render(); msg.focus();
+};
 msg.addEventListener("input", render);
+msg.addEventListener("change", render);
+msg.addEventListener("keyup", render);
+msg.addEventListener("paste", () => setTimeout(render, 0));
+msg.addEventListener("cut", () => setTimeout(render, 0));
 confirmWord.addEventListener("input", render);
 
 function show(text, ok) { result.className = "msg " + (ok ? "ok" : "err"); result.textContent = text; result.hidden = false; result.scrollIntoView({ block: "nearest" }); }
@@ -128,7 +138,11 @@ async function send(mode, btn) {
     const d = await r.json().catch(() => ({}));
     if (r.ok && d.ok) {
       if (mode === "test") show("נשלחה בדיקה לטלפון שלך. היא אמורה להגיע תוך דקה.", true);
-      else { show("השליחה לכולם התחילה. ההודעות ייצאו בהדרגה בשעה-שעתיים הקרובות.", true); confirmWord.value = ""; }
+      else {
+        show("השליחה לכולם התחילה. ההודעות ייצאו בהדרגה בשעה-שעתיים הקרובות.", true);
+        confirmWord.value = ""; msg.value = "";
+        try { localStorage.removeItem(DRAFT); } catch (e) {}
+      }
     } else show(d.text || "השליחה נכשלה. נסו שוב.", false);
   } catch (e) { show("אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.", false); }
   btn.textContent = label; render(); if (mode === "test") btn.disabled = !configured;
