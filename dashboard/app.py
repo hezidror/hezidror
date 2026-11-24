@@ -78,6 +78,13 @@ MAKE_BROADCAST_WEBHOOK = os.environ.get("MAKE_BROADCAST_WEBHOOK", "").strip()
 OWNER_WHATSAPP = re.sub(r"\D", "", os.environ.get("OWNER_WHATSAPP", "972503479449"))
 OWNER_NAME = os.environ.get("OWNER_NAME", "חזי").strip()
 NAME_PLACEHOLDER = "{שם}"
+# תבנית קבועה להודעה מרוכזת: פתיחה וחתימה קבועות, ורק התוכן באמצע משתנה.
+BROADCAST_HEADER = os.environ.get("BROADCAST_HEADER", "שלום " + NAME_PLACEHOLDER)
+BROADCAST_FOOTER = os.environ.get("BROADCAST_FOOTER", "תודה שבחרת חזי עיצוב שיער✂️")
+
+
+def compose_broadcast(body):
+    return f"{BROADCAST_HEADER}\n\n{body.strip()}\n\n{BROADCAST_FOOTER}"
 
 # סט השדות שמוצג בכרטסת לכל סוג טיפול - person keys חייבים להישאר תואמים
 # ל-FIELD_SETS ב-templates/client_card.html (ה-JS שם מפעיל את אותה מיפוי
@@ -1219,6 +1226,7 @@ def broadcast_page():
                "message": r[3] if len(r) > 3 else ""} for r in reversed(rows[-10:]) if len(r) >= 2]
     return render_template("broadcast.html", configured=bool(MAKE_BROADCAST_WEBHOOK), recent=recent,
                            placeholder=NAME_PLACEHOLDER, owner_name=OWNER_NAME,
+                           header=BROADCAST_HEADER, footer=BROADCAST_FOOTER,
                            owner_phone=format_phone(OWNER_WHATSAPP))
 
 
@@ -1229,11 +1237,12 @@ def api_broadcast():
     mode=all -> לכל אנשי הקשר בגוגל (Make עובר עליהם ומחליף את {שם})."""
     data = request.get_json(silent=True) or {}
     mode = data.get("mode")
-    message = (data.get("message") or "").strip()
+    body = (data.get("message") or "").strip()
+    message = compose_broadcast(body) if body else ""
     if mode not in ("test", "all"):
         return jsonify({"ok": False, "error": "bad_mode"}), 400
     if not message:
-        return jsonify({"ok": False, "error": "empty", "text": "ההודעה ריקה."}), 400
+        return jsonify({"ok": False, "error": "empty", "text": "כתבו את תוכן ההודעה."}), 400
     if len(message) > 1500:
         return jsonify({"ok": False, "error": "too_long", "text": "ההודעה ארוכה מדי (עד 1,500 תווים)."}), 400
     if not MAKE_BROADCAST_WEBHOOK:

@@ -7,6 +7,7 @@
   textarea#msg { width: 100%; min-height: 180px; padding: 14px; border-radius: 12px; font-size: 17px; line-height: 1.6; resize: vertical; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .count { color: var(--muted); font-size: 14px; margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+  .fixed { padding: 10px 14px; border-radius: 10px; background: var(--chip); color: var(--muted); font-size: 16px; border: 1px dashed var(--line); }
   .bubble { background: #1f2c22; border-radius: 14px 14px 4px 14px; padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.55; max-width: 92%; }
   .bubble.empty { color: var(--muted); font-style: italic; }
   .note { font-size: 14px; color: var(--muted); margin: 0; }
@@ -37,19 +38,21 @@
   {% endif %}
 
   <section class="card" style="display:flex;flex-direction:column;gap:12px;margin:0">
-    <label for="msg"><h2>ההודעה</h2></label>
-    <textarea id="msg" placeholder="היי {{ placeholder }}, לכבוד החג 15% הנחה על צבע עד סוף החודש ✂️"></textarea>
+    <h2>ההודעה</h2>
+    <div class="fixed">{{ header.replace(placeholder, '(שם הלקוח)') }}</div>
+    <label for="msg" class="note">תוכן ההודעה:</label>
+    <textarea id="msg" placeholder="לכבוד החג 15% הנחה על צבע עד סוף החודש"></textarea>
+    <div class="fixed">{{ footer }}</div>
     <div class="row">
-      <button type="button" class="btn-ghost" id="addName">הוסף {{ placeholder }}</button>
       <button type="button" class="btn-ghost" id="addOptout">הוסף שורת הסרה</button>
       <span class="count" id="count">0 תווים</span>
     </div>
-    <p class="note">במקום <b>{{ placeholder }}</b> כל לקוח יקבל את השם הפרטי שלו, כפי שהוא שמור באנשי הקשר בגוגל.</p>
+    <p class="note">הפתיחה והחתימה קבועות. במקום "(שם הלקוח)" כל לקוח יקבל את השם הפרטי שלו מאנשי הקשר בגוגל.</p>
   </section>
 
   <section style="display:flex;flex-direction:column;gap:8px">
     <h2>כך זה ייראה אצל לקוחה בשם דנה</h2>
-    <div class="bubble empty" id="preview">ההודעה תופיע כאן</div>
+    <div class="bubble empty" id="preview">כתבו את תוכן ההודעה, והיא תופיע כאן</div>
   </section>
 
   <section class="card" style="display:flex;flex-direction:column;gap:12px;margin:0">
@@ -92,13 +95,15 @@ const msg = document.getElementById("msg"), preview = document.getElementById("p
 const sendTest = document.getElementById("sendTest"), sendAll = document.getElementById("sendAll");
 const confirmWord = document.getElementById("confirmWord"), result = document.getElementById("result");
 const configured = {{ configured|tojson }};
+const HEADER = {{ header|tojson }}, FOOTER = {{ footer|tojson }};
+const full = (body) => HEADER + "\n\n" + body.trim() + "\n\n" + FOOTER;
 const DRAFT = "hezi-broadcast-draft";
 try { msg.value = localStorage.getItem(DRAFT) || ""; } catch (e) {}
 
 function render() {
   const t = msg.value;
-  preview.textContent = t ? t.split(PH).join("דנה") : "ההודעה תופיע כאן";
-  preview.classList.toggle("empty", !t);
+  preview.textContent = t.trim() ? full(t).split(PH).join("דנה") : "כתבו את תוכן ההודעה, והיא תופיע כאן";
+  preview.classList.toggle("empty", !t.trim());
   document.getElementById("count").textContent = t.length + " תווים";
   sendAll.disabled = !configured || !t.trim() || confirmWord.value.trim() !== "שלח";
   try { localStorage.setItem(DRAFT, t); } catch (e) {}
@@ -108,7 +113,6 @@ function insert(text) {
   msg.value = msg.value.slice(0, s) + text + msg.value.slice(e);
   msg.focus(); msg.selectionStart = msg.selectionEnd = s + text.length; render();
 }
-document.getElementById("addName").onclick = () => insert(PH);
 document.getElementById("addOptout").onclick = () => { if (!msg.value.includes("להסרה")) { msg.value = msg.value.replace(/\s+$/, "") + "\n\nלהסרה מרשימת ההודעות השיבו הסר"; render(); } };
 msg.addEventListener("input", render);
 confirmWord.addEventListener("input", render);
@@ -116,7 +120,7 @@ confirmWord.addEventListener("input", render);
 function show(text, ok) { result.className = "msg " + (ok ? "ok" : "err"); result.textContent = text; result.hidden = false; result.scrollIntoView({ block: "nearest" }); }
 
 async function send(mode, btn) {
-  if (!msg.value.trim()) { show("ההודעה ריקה.", false); return; }
+  if (!msg.value.trim()) { show("כתבו את תוכן ההודעה.", false); return; }
   btn.disabled = true;
   const label = btn.textContent; btn.textContent = "שולח…";
   try {
