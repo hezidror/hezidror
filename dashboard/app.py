@@ -1227,6 +1227,7 @@ def broadcast_page():
     return render_template("broadcast.html", configured=bool(MAKE_BROADCAST_WEBHOOK), recent=recent,
                            placeholder=NAME_PLACEHOLDER, owner_name=OWNER_NAME,
                            header=BROADCAST_HEADER, footer=BROADCAST_FOOTER,
+                           contact_line=f"ליצירת קשר: https://wa.me/{OWNER_WHATSAPP}",
                            owner_phone=format_phone(OWNER_WHATSAPP))
 
 

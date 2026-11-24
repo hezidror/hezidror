@@ -45,6 +45,7 @@
     <div class="fixed">{{ footer }}</div>
     <div class="row">
       <button type="button" class="btn-ghost" id="clearMsg">נקה</button>
+      <button type="button" class="btn-ghost" id="addContact">הוסף קישור ליצירת קשר</button>
       <button type="button" class="btn-ghost" id="addOptout">הוסף שורת הסרה</button>
       <span class="count" id="count">0 תווים</span>
     </div>
@@ -115,6 +116,15 @@ function insert(text) {
   msg.focus(); msg.selectionStart = msg.selectionEnd = s + text.length; render();
 }
 document.getElementById("addOptout").onclick = () => { if (!msg.value.includes("להסרה")) { msg.value = msg.value.replace(/\s+$/, "") + "\n\nלהסרה מרשימת ההודעות השיבו הסר"; render(); } };
+const CONTACT = {{ contact_line|tojson }};
+document.getElementById("addContact").onclick = () => {
+  if (msg.value.includes(CONTACT)) return;
+  // לפני שורת ההסרה, אם יש
+  const i = msg.value.indexOf("\n\nלהסרה");
+  if (i >= 0) msg.value = msg.value.slice(0, i).replace(/\s+$/, "") + "\n\n" + CONTACT + msg.value.slice(i);
+  else msg.value = msg.value.replace(/\s+$/, "") + (msg.value.trim() ? "\n\n" : "") + CONTACT;
+  render(); msg.focus();
+};
 document.getElementById("clearMsg").onclick = () => {
   msg.value = ""; confirmWord.value = ""; result.hidden = true;
   try { localStorage.removeItem(DRAFT); } catch (e) {}
