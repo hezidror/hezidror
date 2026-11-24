@@ -5,6 +5,7 @@ import json
 import hmac
 import datetime
 import urllib.parse
+import urllib.request
 from collections import defaultdict
 from functools import wraps
 from zoneinfo import ZoneInfo
@@ -51,9 +52,12 @@ CLIENTS_TAB = "Clients"
 CHECKINS_TAB = "Checkins"
 CLIENTS_SHEET_DATA_RANGE = "Clients!A2:D5000"
 CHECKINS_SHEET_DATA_RANGE = "Checkins!A2:D20000"
+BROADCASTS_TAB = "Broadcasts"
+BROADCASTS_SHEET_DATA_RANGE = "Broadcasts!A2:D5000"
 TAB_HEADERS = {
     CLIENTS_TAB: ["Phone", "Name", "CreatedAt", "Source"],
     CHECKINS_TAB: ["Time", "Phone", "Name", "IsNew"],
+    BROADCASTS_TAB: ["Time", "Mode", "Status", "Message"],
 }
 
 TIMEZONE = os.environ.get("TIMEZONE", "Asia/Jerusalem")
@@ -69,6 +73,11 @@ CHECKIN_MESSAGE = os.environ.get("CHECKIN_MESSAGE", f"היי, {CHECKIN_KEYWORD} 
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
 # כרטיסייה: כל ביקור N הוא מתנה. 0 מבטל את הכרטיסייה.
 LOYALTY_VISITS = int(os.environ.get("LOYALTY_VISITS", "10") or 0)
+# הודעה מרוכזת: כתובת ה-webhook של תרחיש השליחה ב-Make, והטלפון שמקבל הודעת בדיקה.
+MAKE_BROADCAST_WEBHOOK = os.environ.get("MAKE_BROADCAST_WEBHOOK", "").strip()
+OWNER_WHATSAPP = re.sub(r"\D", "", os.environ.get("OWNER_WHATSAPP", "972503479449"))
+OWNER_NAME = os.environ.get("OWNER_NAME", "חזי").strip()
+NAME_PLACEHOLDER = "{שם}"
 
 # סט השדות שמוצג בכרטסת לכל סוג טיפול - person keys חייבים להישאר תואמים
 # ל-FIELD_SETS ב-templates/client_card.html (ה-JS שם מפעיל את אותה מיפוי
@@ -130,6 +139,7 @@ _price_rows_cache = {"rows": None, "fetched_at": None}
 _client_notes_rows_cache = {"rows": None, "fetched_at": None}
 _clients_rows_cache = {"rows": None, "fetched_at": None}
 _checkins_rows_cache = {"rows": None, "fetched_at": None}
+_broadcasts_rows_cache = {"rows": None, "fetched_at": None}
 _ensured_tabs = set()
 CACHE_TTL_SECONDS = 300
 
@@ -1199,6 +1209,69 @@ def api_checkin():
         # מקודדות), כדי שגוף הבקשה ל-Green-API לא יישבר (ראו תקלה #10).
         "message_json": json.dumps("\n".join(lines), ensure_ascii=False)[1:-1],
     })
+
+
+@app.route("/app/broadcast")
+@login_required
+def broadcast_page():
+    rows = _read_tab_rows(_broadcasts_rows_cache, BROADCASTS_TAB, BROADCASTS_SHEET_DATA_RANGE)
+    recent = [{"time": r[0][:16].replace("T", " "), "mode": r[1], "status": r[2] if len(r) > 2 else "",
+               "message": r[3] if len(r) > 3 else ""} for r in reversed(rows[-10:]) if len(r) >= 2]
+    return render_template("broadcast.html", configured=bool(MAKE_BROADCAST_WEBHOOK), recent=recent,
+                           placeholder=NAME_PLACEHOLDER, owner_name=OWNER_NAME,
+                           owner_phone=format_phone(OWNER_WHATSAPP))
+
+
+@app.route("/api/broadcast", methods=["POST"])
+@login_required
+def api_broadcast():
+    """שולח ל-Make בקשה להודעה מרוכזת. mode=test -> רק לטלפון של חזי;
+    mode=all -> לכל אנשי הקשר בגוגל (Make עובר עליהם ומחליף את {שם})."""
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode")
+    message = (data.get("message") or "").strip()
+    if mode not in ("test", "all"):
+        return jsonify({"ok": False, "error": "bad_mode"}), 400
+    if not message:
+        return jsonify({"ok": False, "error": "empty", "text": "ההודעה ריקה."}), 400
+    if len(message) > 1500:
+        return jsonify({"ok": False, "error": "too_long", "text": "ההודעה ארוכה מדי (עד 1,500 תווים)."}), 400
+    if not MAKE_BROADCAST_WEBHOOK:
+        return jsonify({"ok": False, "error": "not_configured",
+                        "text": "השליחה עוד לא מחוברת: חסר MAKE_BROADCAST_WEBHOOK בהגדרות השרת."}), 400
+
+    rows = _read_tab_rows(_broadcasts_rows_cache, BROADCASTS_TAB, BROADCASTS_SHEET_DATA_RANGE)
+    if mode == "all":
+        # הגנה מלחיצה כפולה: אותה הודעה לכולם פעמיים תוך 30 דקות
+        cutoff = (local_now() - datetime.timedelta(minutes=30)).isoformat(timespec="seconds")
+        if any(len(r) > 3 and r[1] == "all" and r[2] == "sent" and r[0] >= cutoff and r[3] == message for r in rows):
+            return jsonify({"ok": False, "error": "duplicate",
+                            "text": "ההודעה הזו כבר נשלחה לכולם בחצי השעה האחרונה."}), 409
+
+    payload = {
+        "secret": CHECKIN_SECRET,
+        "mode": mode,
+        "message_json": json.dumps(message, ensure_ascii=False)[1:-1],
+        "placeholder": NAME_PLACEHOLDER,
+        "test_chat_id": f"{OWNER_WHATSAPP}@c.us",
+        "test_name": OWNER_NAME,
+    }
+    status = "sent"
+    try:
+        req = urllib.request.Request(MAKE_BROADCAST_WEBHOOK, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                                     headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            ok = 200 <= resp.status < 300
+    except Exception:
+        ok = False
+    if not ok:
+        status = "failed"
+    _append_row(_broadcasts_rows_cache, BROADCASTS_TAB,
+                [local_now().isoformat(timespec="seconds"), mode, status, message])
+    if not ok:
+        return jsonify({"ok": False, "error": "make_failed",
+                        "text": "Make לא קיבל את הבקשה. בדקו שהתרחיש פעיל ונסו שוב."}), 502
+    return jsonify({"ok": True})
 
 
 @app.route("/poster")

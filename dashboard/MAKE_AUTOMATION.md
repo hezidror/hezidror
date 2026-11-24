@@ -384,3 +384,28 @@ Header `X-Checkin-Secret`, Body type JSON, Parse response = Yes, Timeout 120):
 2. תוך כמה שניות: הודעה עם קישור מגיעה לטלפון הפרטי, והשם מופיע ב"הגיעו
    עכשיו" באפליקציה.
 3. לבדוק בגיליון שנוצרו הלשוניות `Clients` ו-`Checkins` עם השורה.
+
+
+---
+
+## תרחיש 8: הודעה מרוכזת לכל אנשי הקשר
+
+**מה זה עושה:** במסך "הודעה" באפליקציה (`/app/broadcast`) כותבים הודעה עם
+`{שם}`, שולחים בדיקה לטלפון של חזי, ואז "שלח לכולם". הדשבורד שולח ל-webhook
+של התרחיש (`MAKE_BROADCAST_WEBHOOK`) את:
+`secret`, `mode` (`test`/`all`), `message_json` (ההודעה, מקודדת ל-JSON),
+`placeholder` (`{שם}`), `test_chat_id`, `test_name`.
+
+**מבנה:** Webhooks (Custom webhook "שליחה מרוכזת") → פילטר `secret` =
+`CHECKIN_SECRET` → Router:
+- **בדיקה** (`mode` = `test`): HTTP sendMessage עם
+  `{"chatId": "{{1.test_chat_id}}", "message": "{{replace(1.message_json; 1.placeholder; 1.test_name)}}"}`
+- **לכולם** (`mode` = `all`): Google Contacts **List My Contacts** (Limit גבוה) →
+  פילטר: יש טלפון בפורמט `^972\d{9}$` (ולא בתווית "לא לשלוח") → HTTP sendMessage
+  עם `chatId` = הטלפון + `@c.us`, ו-`message` = replace של `{שם}` בשם הפרטי.
+
+**קצב:** ההודעות נכנסות לתור של Green-API, שמוציא אותן לאט לפי ההגדרה
+"עיכוב שליחת הודעות מהתור" (`delaySendMessagesMilliseconds`, למשל 30000 = 30
+שניות). זה מונע חסימה של המספר ע"י וואטסאפ, ומאפשר ל-Make לסיים מהר (ריצת Make
+מוגבלת ל-40 דקות). ההגדרה חלה על **כל** ההודעות של המספר, ולכן שולחים הודעה
+מרוכזת אחרי שעות הפתיחה.

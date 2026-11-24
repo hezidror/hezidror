@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}הודעה לכולם - חזי מספרה{% endblock %}
+{% block head %}
+<style>
+  .wrap { max-width: 720px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 18px; }
+  .wrap h2 { font-family: var(--font-head); margin: 0; font-size: 20px; }
+  textarea#msg { width: 100%; min-height: 180px; padding: 14px; border-radius: 12px; font-size: 17px; line-height: 1.6; resize: vertical; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .count { color: var(--muted); font-size: 14px; margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+  .bubble { background: #1f2c22; border-radius: 14px 14px 4px 14px; padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.55; max-width: 92%; }
+  .bubble.empty { color: var(--muted); font-style: italic; }
+  .note { font-size: 14px; color: var(--muted); margin: 0; }
+  .msg { padding: 10px 14px; border-radius: 10px; font-weight: 700; }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .msg.err { border: 1px solid var(--danger); color: var(--danger); }
+  .confirm { border: 1px solid var(--danger); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .confirm input { padding: 10px 12px; border-radius: 10px; width: 160px; max-width: 100%; }
+  .btn-danger { padding: 12px 20px; border-radius: 12px; border: 0; background: var(--danger); color: #1a1209; font-weight: 800; cursor: pointer; }
+  .btn-danger:disabled, .btn-gold:disabled, .btn-ghost:disabled { opacity: .5; cursor: not-allowed; }
+  ul.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  ul.log li { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; font-size: 14px; align-items: baseline; }
+  ul.log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+  ul.log .m { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); }
+  .tag.all { background: var(--gold-grad); color: var(--on-accent); }
+  .tag.failed { color: var(--danger); }
+</style>
+{% endblock %}
+{% block body %}
+<header>
+  <h1>הודעה לכל הלקוחות</h1>
+  <nav><a href="{{ url_for('app_home') }}">אפליקציה</a></nav>
+</header>
+<div class="wrap">
+  {% if not configured %}
+  <div class="msg err">השליחה עוד לא מחוברת ל-Make: חסר <code>MAKE_BROADCAST_WEBHOOK</code> בהגדרות השרת ב-Render. אפשר כבר לכתוב ולראות תצוגה מקדימה.</div>
+  {% endif %}
+
+  <section class="card" style="display:flex;flex-direction:column;gap:12px;margin:0">
+    <label for="msg"><h2>ההודעה</h2></label>
+    <textarea id="msg" placeholder="היי {{ placeholder }}, לכבוד החג 15% הנחה על צבע עד סוף החודש ✂️"></textarea>
+    <div class="row">
+      <button type="button" class="btn-ghost" id="addName">הוסף {{ placeholder }}</button>
+      <button type="button" class="btn-ghost" id="addOptout">הוסף שורת הסרה</button>
+      <span class="count" id="count">0 תווים</span>
+    </div>
+    <p class="note">במקום <b>{{ placeholder }}</b> כל לקוח יקבל את השם הפרטי שלו, כפי שהוא שמור באנשי הקשר בגוגל.</p>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:8px">
+    <h2>כך זה ייראה אצל לקוחה בשם דנה</h2>
+    <div class="bubble empty" id="preview">ההודעה תופיע כאן</div>
+  </section>
+
+  <section class="card" style="display:flex;flex-direction:column;gap:12px;margin:0">
+    <h2>1. בדיקה</h2>
+    <p class="note">שולח את ההודעה רק אליך ({{ owner_phone }}), עם השם "{{ owner_name }}". תמיד לבדוק לפני ששולחים לכולם.</p>
+    <div class="row"><button type="button" class="btn-gold" id="sendTest" {% if not configured %}disabled{% endif %}>שלח לי בדיקה</button></div>
+  </section>
+
+  <section class="confirm">
+    <h2>2. שליחה לכל אנשי הקשר</h2>
+    <p class="note">ההודעות יוצאות בהדרגה, אחת כל כמה עשרות שניות, כדי שוואטסאפ לא יחסום את המספר. שליחה לכולם יכולה לקחת שעה ויותר. אי אפשר לבטל אחרי השליחה.</p>
+    <p class="note"><b>מומלץ לשלוח אחרי שעות הפתיחה:</b> בזמן השליחה, גם הודעות הצ'ק-אין והתשובות האוטומטיות מחכות בתור.</p>
+    <p class="note">הודעה פרסומית (מבצע, הנחה) מותר לשלוח רק למי שהסכים לקבל, ועם אפשרות הסרה. לחצו "הוסף שורת הסרה".</p>
+    <label for="confirmWord" class="note">כדי לשלוח, הקלידו את המילה <b>שלח</b>:</label>
+    <div class="row">
+      <input id="confirmWord" autocomplete="off">
+      <button type="button" class="btn-danger" id="sendAll" disabled>שלח לכולם</button>
+    </div>
+  </section>
+
+  <div id="result" hidden></div>
+
+  {% if recent %}
+  <section style="display:flex;flex-direction:column;gap:8px">
+    <h2>שליחות אחרונות</h2>
+    <ul class="log">
+      {% for r in recent %}
+      <li><time>{{ r.time }}</time>
+        <span class="tag {{ 'all' if r.mode == 'all' else '' }} {{ 'failed' if r.status == 'failed' else '' }}">{{ 'לכולם' if r.mode == 'all' else 'בדיקה' }}{{ ' · נכשל' if r.status == 'failed' else '' }}</span>
+        <span class="m">{{ r.message }}</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</div>
+
+<script>
+const PH = {{ placeholder|tojson }};
+const msg = document.getElementById("msg"), preview = document.getElementById("preview");
+const sendTest = document.getElementById("sendTest"), sendAll = document.getElementById("sendAll");
+const confirmWord = document.getElementById("confirmWord"), result = document.getElementById("result");
+const configured = {{ configured|tojson }};
+const DRAFT = "hezi-broadcast-draft";
+try { msg.value = localStorage.getItem(DRAFT) || ""; } catch (e) {}
+
+function render() {
+  const t = msg.value;
+  preview.textContent = t ? t.split(PH).join("דנה") : "ההודעה תופיע כאן";
+  preview.classList.toggle("empty", !t);
+  document.getElementById("count").textContent = t.length + " תווים";
+  sendAll.disabled = !configured || !t.trim() || confirmWord.value.trim() !== "שלח";
+  try { localStorage.setItem(DRAFT, t); } catch (e) {}
+}
+function insert(text) {
+  const s = msg.selectionStart ?? msg.value.length, e = msg.selectionEnd ?? s;
+  msg.value = msg.value.slice(0, s) + text + msg.value.slice(e);
+  msg.focus(); msg.selectionStart = msg.selectionEnd = s + text.length; render();
+}
+document.getElementById("addName").onclick = () => insert(PH);
+document.getElementById("addOptout").onclick = () => { if (!msg.value.includes("להסרה")) { msg.value = msg.value.replace(/\s+$/, "") + "\n\nלהסרה מרשימת ההודעות השיבו הסר"; render(); } };
+msg.addEventListener("input", render);
+confirmWord.addEventListener("input", render);
+
+function show(text, ok) { result.className = "msg " + (ok ? "ok" : "err"); result.textContent = text; result.hidden = false; result.scrollIntoView({ block: "nearest" }); }
+
+async function send(mode, btn) {
+  if (!msg.value.trim()) { show("ההודעה ריקה.", false); return; }
+  btn.disabled = true;
+  const label = btn.textContent; btn.textContent = "שולח…";
+  try {
+    const r = await fetch("{{ url_for('api_broadcast') }}", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode, message: msg.value }) });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) {
+      if (mode === "test") show("נשלחה בדיקה לטלפון שלך. היא אמורה להגיע תוך דקה.", true);
+      else { show("השליחה לכולם התחילה. ההודעות ייצאו בהדרגה בשעה-שעתיים הקרובות.", true); confirmWord.value = ""; }
+    } else show(d.text || "השליחה נכשלה. נסו שוב.", false);
+  } catch (e) { show("אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.", false); }
+  btn.textContent = label; render(); if (mode === "test") btn.disabled = !configured;
+}
+sendTest.onclick = () => send("test", sendTest);
+sendAll.onclick = () => send("all", sendAll);
+render();
+</script>
+{% endblock %}
