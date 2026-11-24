@@ -1227,7 +1227,7 @@ def broadcast_page():
     return render_template("broadcast.html", configured=bool(MAKE_BROADCAST_WEBHOOK), recent=recent,
                            placeholder=NAME_PLACEHOLDER, owner_name=OWNER_NAME,
                            header=BROADCAST_HEADER, footer=BROADCAST_FOOTER,
-                           contact_line=f"ליצירת קשר: https://wa.me/{OWNER_WHATSAPP}",
+                           contact_line=f"ליצירת קשר עם חזי: {base_url()}/wa",
                            owner_phone=format_phone(OWNER_WHATSAPP))
 
 
@@ -1282,6 +1282,31 @@ def api_broadcast():
         return jsonify({"ok": False, "error": "make_failed",
                         "text": "Make לא קיבל את הבקשה. בדקו שהתרחיש פעיל ונסו שוב."}), 502
     return jsonify({"ok": True})
+
+
+@app.route("/wa")
+def contact_redirect():
+    """קישור ציבורי ליצירת קשר: מציג בוואטסאפ תצוגה מקדימה ממותגת (לוגו), ומעביר
+    מיד לשיחה בוואטסאפ הפרטי של חזי. בלי סיסמה - אין כאן שום נתון פרטי."""
+    target = f"https://wa.me/{OWNER_WHATSAPP}"
+    image = base_url() + url_for("static", filename="og-contact.jpg")
+    html = f"""<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>חזי דרור · עיצוב שיער</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="חזי דרור · עיצוב שיער ✂️">
+<meta property="og:description" content="לחצו כאן לשיחה עם חזי בוואטסאפ">
+<meta property="og:image" content="{image}">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:url" content="{base_url()}/wa">
+<meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="refresh" content="0; url={target}">
+<style>body{{margin:0;min-height:100vh;display:grid;place-items:center;background:#100e0c;color:#f4ecdf;font-family:Arial,sans-serif;text-align:center}}a{{color:#e8bb5a;font-size:20px}}</style>
+</head><body><div><p>מעבירים אותך לוואטסאפ של חזי…</p><a href="{target}">לחצו כאן אם זה לא קורה לבד</a></div>
+<script>location.replace({json.dumps(target)});</script></body></html>"""
+    resp = Response(html, mimetype="text/html")
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
 
 
 @app.route("/poster")
