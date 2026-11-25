@@ -5,6 +5,10 @@
   .wrap { max-width: 720px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 18px; }
   .wrap h2 { font-family: var(--font-head); margin: 0; font-size: 20px; }
   textarea#msg { width: 100%; min-height: 180px; padding: 14px; border-radius: 12px; font-size: 17px; line-height: 1.6; resize: vertical; }
+  .emojis { display: flex; flex-wrap: wrap; gap: 4px; }
+  .emo { font-size: 24px; line-height: 1; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; padding: 0; }
+  .emo:hover { border-color: var(--accent); }
+  .emo:active { transform: scale(.9); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .count { color: var(--muted); font-size: 14px; margin-inline-start: auto; font-variant-numeric: tabular-nums; }
   .fixed { padding: 10px 14px; border-radius: 10px; background: var(--chip); color: var(--muted); font-size: 16px; border: 1px dashed var(--line); }
@@ -42,6 +46,7 @@
     <div class="fixed">{{ header.replace(placeholder, '(שם הלקוח)') }}</div>
     <label for="msg" class="note">תוכן ההודעה:</label>
     <textarea id="msg" placeholder="לכבוד החג 15% הנחה על צבע עד סוף החודש"></textarea>
+    <div class="emojis" role="group" aria-label="אימוג'י"><button type="button" class="emo" data-e="❤️" aria-label="הוסף ❤️">❤️</button><button type="button" class="emo" data-e="💛" aria-label="הוסף 💛">💛</button><button type="button" class="emo" data-e="🖤" aria-label="הוסף 🖤">🖤</button><button type="button" class="emo" data-e="😍" aria-label="הוסף 😍">😍</button><button type="button" class="emo" data-e="😊" aria-label="הוסף 😊">😊</button><button type="button" class="emo" data-e="😉" aria-label="הוסף 😉">😉</button><button type="button" class="emo" data-e="🥰" aria-label="הוסף 🥰">🥰</button><button type="button" class="emo" data-e="🙏" aria-label="הוסף 🙏">🙏</button><button type="button" class="emo" data-e="👏" aria-label="הוסף 👏">👏</button><button type="button" class="emo" data-e="✨" aria-label="הוסף ✨">✨</button><button type="button" class="emo" data-e="🌟" aria-label="הוסף 🌟">🌟</button><button type="button" class="emo" data-e="🔥" aria-label="הוסף 🔥">🔥</button><button type="button" class="emo" data-e="🎉" aria-label="הוסף 🎉">🎉</button><button type="button" class="emo" data-e="🥂" aria-label="הוסף 🥂">🥂</button><button type="button" class="emo" data-e="🎁" aria-label="הוסף 🎁">🎁</button><button type="button" class="emo" data-e="💇‍♀️" aria-label="הוסף 💇‍♀️">💇‍♀️</button><button type="button" class="emo" data-e="💇‍♂️" aria-label="הוסף 💇‍♂️">💇‍♂️</button><button type="button" class="emo" data-e="✂️" aria-label="הוסף ✂️">✂️</button><button type="button" class="emo" data-e="💈" aria-label="הוסף 💈">💈</button><button type="button" class="emo" data-e="💄" aria-label="הוסף 💄">💄</button><button type="button" class="emo" data-e="💅" aria-label="הוסף 💅">💅</button><button type="button" class="emo" data-e="🌸" aria-label="הוסף 🌸">🌸</button><button type="button" class="emo" data-e="🌹" aria-label="הוסף 🌹">🌹</button><button type="button" class="emo" data-e="☀️" aria-label="הוסף ☀️">☀️</button><button type="button" class="emo" data-e="🕯️" aria-label="הוסף 🕯️">🕯️</button><button type="button" class="emo" data-e="🕎" aria-label="הוסף 🕎">🕎</button><button type="button" class="emo" data-e="📅" aria-label="הוסף 📅">📅</button><button type="button" class="emo" data-e="⏰" aria-label="הוסף ⏰">⏰</button><button type="button" class="emo" data-e="📞" aria-label="הוסף 📞">📞</button><button type="button" class="emo" data-e="💬" aria-label="הוסף 💬">💬</button><button type="button" class="emo" data-e="👉" aria-label="הוסף 👉">👉</button><button type="button" class="emo" data-e="✅" aria-label="הוסף ✅">✅</button></div>
     <div class="fixed">{{ footer }}</div>
     <div class="row">
       <button type="button" class="btn-ghost" id="clearMsg">נקה</button>
@@ -110,6 +115,16 @@ function render() {
   sendAll.disabled = !configured || !t.trim() || confirmWord.value.trim() !== "שלח";
   try { localStorage.setItem(DRAFT, t); } catch (e) {}
 }
+// זוכרים איפה היה הסמן, כדי שלחיצה על אימוג'י תכניס אותו במקום הנכון
+let caret = null;
+["keyup","click","select","input"].forEach(ev => msg.addEventListener(ev, () => { caret = [msg.selectionStart, msg.selectionEnd]; }));
+document.querySelectorAll(".emo").forEach(b => {
+  b.addEventListener("mousedown", e => e.preventDefault());
+  b.addEventListener("click", () => {
+    if (caret) { msg.selectionStart = caret[0]; msg.selectionEnd = caret[1]; } else { msg.selectionStart = msg.selectionEnd = msg.value.length; }
+    insert(b.dataset.e); caret = [msg.selectionStart, msg.selectionEnd];
+  });
+});
 function insert(text) {
   const s = msg.selectionStart ?? msg.value.length, e = msg.selectionEnd ?? s;
   msg.value = msg.value.slice(0, s) + text + msg.value.slice(e);
