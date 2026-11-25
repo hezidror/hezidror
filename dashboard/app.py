@@ -75,6 +75,10 @@ PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
 LOYALTY_VISITS = int(os.environ.get("LOYALTY_VISITS", "10") or 0)
 # הודעה מרוכזת: כתובת ה-webhook של תרחיש השליחה ב-Make, והטלפון שמקבל הודעת בדיקה.
 MAKE_BROADCAST_WEBHOOK = os.environ.get("MAKE_BROADCAST_WEBHOOK", "").strip()
+# שליחה לכל אנשי הקשר כבויה כברירת מחדל: שליחה מרוכזת דרך Green-API גרמה לחסימת
+# מספר העסק בוואטסאפ. מדליקים רק במודע (BROADCAST_ALL_ENABLED=yes), למשל אחרי
+# מעבר ל-WhatsApp Business API הרשמי.
+BROADCAST_ALL_ENABLED = os.environ.get("BROADCAST_ALL_ENABLED", "").strip().lower() in ("1", "yes", "true")
 OWNER_WHATSAPP = re.sub(r"\D", "", os.environ.get("OWNER_WHATSAPP", "972503479449"))
 OWNER_NAME = os.environ.get("OWNER_NAME", "חזי").strip()
 NAME_PLACEHOLDER = "{שם}"
@@ -1225,6 +1229,7 @@ def broadcast_page():
     recent = [{"time": r[0][:16].replace("T", " "), "mode": r[1], "status": r[2] if len(r) > 2 else "",
                "message": r[3] if len(r) > 3 else ""} for r in reversed(rows[-10:]) if len(r) >= 2]
     return render_template("broadcast.html", configured=bool(MAKE_BROADCAST_WEBHOOK), recent=recent,
+                           all_enabled=BROADCAST_ALL_ENABLED,
                            placeholder=NAME_PLACEHOLDER, owner_name=OWNER_NAME,
                            header=BROADCAST_HEADER, footer=BROADCAST_FOOTER,
                            contact_line=f"ליצירת קשר עם חזי: {base_url()}/wa",
@@ -1242,6 +1247,9 @@ def api_broadcast():
     message = compose_broadcast(body) if body else ""
     if mode not in ("test", "all"):
         return jsonify({"ok": False, "error": "bad_mode"}), 400
+    if mode == "all" and not BROADCAST_ALL_ENABLED:
+        return jsonify({"ok": False, "error": "disabled",
+                        "text": "השליחה לכולם כבויה, כדי לשמור על מספר הוואטסאפ של העסק מחסימה."}), 403
     if not message:
         return jsonify({"ok": False, "error": "empty", "text": "כתבו את תוכן ההודעה."}), 400
     if len(message) > 1500:

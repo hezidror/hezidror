@@ -68,6 +68,7 @@
     <div class="row"><button type="button" class="btn-gold" id="sendTest" {% if not configured %}disabled{% endif %}>שלח לי בדיקה</button></div>
   </section>
 
+{% if all_enabled %}
   <section class="confirm">
     <h2>2. שליחה לכל אנשי הקשר</h2>
     <p class="note">ההודעות יוצאות בהדרגה, אחת כל כמה עשרות שניות, כדי שוואטסאפ לא יחסום את המספר. שליחה לכולם יכולה לקחת שעה ויותר. אי אפשר לבטל אחרי השליחה.</p>
@@ -79,6 +80,12 @@
       <button type="button" class="btn-danger" id="sendAll" disabled>שלח לכולם</button>
     </div>
   </section>
+  {% else %}
+  <section class="confirm">
+    <h2>שליחה לכל אנשי הקשר: כבויה</h2>
+    <p class="note">שליחה מרוכזת דרך החיבור הנוכחי לוואטסאפ (Green-API) גרמה לחסימת מספר העסק, ולכן היא כבויה. אפשר עדיין לנסח הודעה ולשלוח לעצמך בדיקה.</p>
+  </section>
+  {% endif %}
 
   <div id="result" hidden></div>
 
@@ -99,8 +106,10 @@
 <script>
 const PH = {{ placeholder|tojson }};
 const msg = document.getElementById("msg"), preview = document.getElementById("preview");
-const sendTest = document.getElementById("sendTest"), sendAll = document.getElementById("sendAll");
-const confirmWord = document.getElementById("confirmWord"), result = document.getElementById("result");
+const sendTest = document.getElementById("sendTest");
+const sendAll = document.getElementById("sendAll") || document.createElement("button");
+const confirmWord = document.getElementById("confirmWord") || document.createElement("input");
+const result = document.getElementById("result");
 const configured = {{ configured|tojson }};
 const HEADER = {{ header|tojson }}, FOOTER = {{ footer|tojson }};
 const full = (body) => HEADER + "\n\n" + body.trim() + "\n\n" + FOOTER;
